@@ -1,0 +1,47 @@
+{
+  "test_timestamp": "2025-07-02T04:01:26.573459",
+  "test_duration": 2.88,
+  "components": {
+    "cloud_functions": {
+      "gitbook_function": {
+        "status": "error",
+        "url": "https://gitbook-api-jlhinciqia-od.a.run.app",
+        "error": "HTTP 400"
+      },
+      "jira_function": {
+        "status": "error",
+        "url": "https://jira-api-jlhinciqia-od.a.run.app",
+        "error": "HTTP 400"
+      }
+    },
+    "business_rules": {
+      "status": "success",
+      "rules_applied": [
+        "security_rules"
+      ],
+      "enhanced_ticket": {
+        "summary": "Implement user authentication",
+        "description": "As a user I want secure login so that my account is protected\n\n## Validation Requirements\n- Security team review required\n- Penetration testing required\n- Security documentation update required\n- Additional review cycles required\n- Stakeholder approval required\n\n\n## Testing Requirements\n- Security test suite execution\n- Authentication flow testing\n- Authorization boundary testing\n- Security test suite execution\n- Penetration testing completed\n- Authentication flow testing\n- Data encryption validation\n\n\n## Documentation Requirements\n- Security architecture documentation\n- Threat model update\n- Security configuration guide\n\n\n## Definition of Done\n- Code review completed\n- Security review passed\n- All tests passing\n- Documentation updated\n- Deployed to production\n",
+        "priority": "High",
+        "issue_type": "Story",
+        "labels": [
+          "security",
+          "security-review-required"
+        ]
+      }
+    },
+    "monitoring": {
+      "status": "not_available",
+      "error": "Monitoring system not imported"
+    },
+    "orchestrator": {
+      "status": "error",
+      "error": "Orchestrator not available",
+      "suggestion": "Check import dependencies"
+    }
+  },
+  "overall_status": "degraded",
+  "success_count": 1,
+  "total_tests": 4,
+  "success_rate": 25.0
+}

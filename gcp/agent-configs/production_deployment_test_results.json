@@ -1,0 +1,163 @@
+{
+  "test_timestamp": "2025-07-02T04:03:14.049602",
+  "test_duration": 23.54,
+  "test_suites": {
+    "complex_scenarios": {
+      "scenarios_tested": 4,
+      "scenarios_passed": 4,
+      "scenario_results": [
+        {
+          "name": "OAuth Authentication with GDPR Compliance",
+          "request": "Implement OAuth 2.0 authentication system with GDPR compliance, secure session management, and audit logging for European users",
+          "success": true,
+          "execution_time": 2.53,
+          "quality_score": 0.96,
+          "ticket_created": true,
+          "ticket_key": "AHSSI-2861",
+          "iterations": 1,
+          "expected_complexity": "high",
+          "status": "\u2705 PASSED"
+        },
+        {
+          "name": "API Rate Limiting with Performance Monitoring",
+          "request": "Add intelligent API rate limiting with performance monitoring, auto-scaling triggers, and detailed analytics dashboard",
+          "success": true,
+          "execution_time": 2.23,
+          "quality_score": 0.96,
+          "ticket_created": true,
+          "ticket_key": "AHSSI-2862",
+          "iterations": 1,
+          "expected_complexity": "medium",
+          "status": "\u2705 PASSED"
+        },
+        {
+          "name": "Multi-tenant Data Isolation",
+          "request": "Implement multi-tenant data isolation with role-based access control and tenant-specific configurations",
+          "success": true,
+          "execution_time": 2.37,
+          "quality_score": 0.96,
+          "ticket_created": true,
+          "ticket_key": "AHSSI-2863",
+          "iterations": 1,
+          "expected_complexity": "high",
+          "status": "\u2705 PASSED"
+        },
+        {
+          "name": "Simple Bug Fix",
+          "request": "Fix the submit button styling on the login page - it's not aligned properly with the form fields",
+          "success": true,
+          "execution_time": 2.21,
+          "quality_score": 0.96,
+          "ticket_created": true,
+          "ticket_key": "AHSSI-2864",
+          "iterations": 1,
+          "expected_complexity": "low",
+          "status": "\u2705 PASSED"
+        }
+      ],
+      "performance_metrics": {
+        "total_time": 9.34,
+        "avg_time_per_scenario": 2.33,
+        "quality_scores": [
+          0.96,
+          0.96,
+          0.96,
+          0.96
+        ],
+        "avg_quality_score": 0.96
+      },
+      "success_rate": 100.0
+    },
+    "performance_benchmarks": {
+      "benchmarks_tested": 4,
+      "benchmarks_passed": 3,
+      "benchmark_results": [
+        {
+          "name": "Response Time",
+          "target": "<2s",
+          "actual": "2.19s",
+          "passed": false,
+          "status": "\u274c FAILED"
+        },
+        {
+          "name": "Quality Score",
+          "target": "\u22650.8",
+          "actual": "0.960",
+          "passed": true,
+          "status": "\u2705 PASSED"
+        },
+        {
+          "name": "Complex Request",
+          "target": "<5s",
+          "actual": "2.44s",
+          "passed": true,
+          "status": "\u2705 PASSED"
+        },
+        {
+          "name": "Concurrent Processing",
+          "target": "Multiple requests",
+          "actual": "3 requests in 7.33s (avg: 2.44s)",
+          "passed": true,
+          "status": "\u2705 PASSED",
+          "details": {
+            "success_rate": "100.0%",
+            "total_time": "7.33s",
+            "avg_time": "2.44s"
+          }
+        }
+      ],
+      "success_rate": 75.0
+    },
+    "enterprise_features": {
+      "features_tested": 5,
+      "features_working": 5,
+      "feature_results": [
+        {
+          "name": "Business Rules Engine",
+          "feature": "business_rules",
+          "working": true,
+          "details": "Business rules engine processed the request",
+          "status": "\u2705 WORKING"
+        },
+        {
+          "name": "Quality Gates",
+          "feature": "quality_gates",
+          "working": true,
+          "details": "Quality score: 0.960, Threshold met: True",
+          "status": "\u2705 WORKING"
+        },
+        {
+          "name": "Workflow Monitoring",
+          "feature": "monitoring",
+          "working": true,
+          "details": "Execution tracking: 3 agents monitored",
+          "status": "\u2705 WORKING"
+        },
+        {
+          "name": "Error Handling",
+          "feature": "error_handling",
+          "working": true,
+          "details": "Request processed successfully: True",
+          "status": "\u2705 WORKING"
+        },
+        {
+          "name": "Audit Logging",
+          "feature": "audit_logging",
+          "working": true,
+          "details": "Audit trail: 4 interactions logged",
+          "status": "\u2705 WORKING"
+        }
+      ],
+      "success_rate": 100.0
+    }
+  },
+  "overall_status": "PRODUCTION READY",
+  "production_ready": true,
+  "overall_success_rate": 92.3076923076923,
+  "production_criteria": {
+    "complex_scenarios": true,
+    "performance_benchmarks": true,
+    "enterprise_features": true,
+    "overall_success": true
+  }
+}

@@ -29,7 +29,7 @@ class PMAgent:
         vertexai.init(project=project_id, location=location)
         
         # Agent configuration
-        self.model_name = "gemini-1.5-pro"
+        self.model_name = "gemini-2.5-flash"
         self.agent_instructions = self._get_agent_instructions()
         
         logger.info(f"PM Agent initialized for project {project_id} in {location}")

@@ -28,7 +28,7 @@ class JiraCreatorAgent:
         vertexai.init(project=project_id, location=location)
         
         # Agent configuration
-        self.model_name = "gemini-1.5-flash"  # Faster model for execution tasks
+        self.model_name = "gemini-2.5-flash"  # Latest and best model for execution tasks
         self.agent_instructions = self._get_agent_instructions()
         
         logger.info(f"Jira Creator Agent initialized for project {project_id} in {location}")

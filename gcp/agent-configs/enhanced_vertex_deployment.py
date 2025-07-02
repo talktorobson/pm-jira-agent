@@ -176,7 +176,7 @@ class EnhancedVertexAIDeployment:
         vertexai.init(project=project_id, location=location)
         
         # Model configuration
-        self.model_name = "gemini-2.0-flash-exp"
+        self.model_name = "gemini-2.5-flash"
         self.model_config = {
             "temperature": 0.1,
             "max_output_tokens": 8192,
