@@ -13,17 +13,20 @@ import os
 from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 
-# Add the agent-configs directory to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'gcp', 'agent-configs'))
+# For Phase 0 deployment, prioritize mock agents for reliability
+print("🚀 Phase 0 Mode: Initializing individual deployment with mock agents")
 
+# Try to import real agents if available, but gracefully fall back to mocks
 try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'gcp', 'agent-configs'))
     from pm_agent import PMAgent
     from tech_lead_agent import TechLeadAgent
     from jira_agent import JiraCreatorAgent
     from tools import QualityGates
     from business_rules import BusinessRulesEngine
+    print("✅ Real agents imported successfully")
 except ImportError as e:
-    logging.warning(f"Could not import agents: {e}. Using mock agents for testing.")
+    print(f"ℹ️  Real agents not available ({e}), using mock agents for Phase 0")
     PMAgent = None
     TechLeadAgent = None
     JiraCreatorAgent = None

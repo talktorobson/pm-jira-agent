@@ -19,6 +19,21 @@ python -c "import flask, flask_socketio, yaml" || {
     exit 1
 }
 
+# Test if our app can be imported
+echo "🔍 Testing app import..."
+python -c "
+import sys
+sys.path.insert(0, '/app')
+try:
+    from app import app
+    print('✅ App imported successfully')
+except Exception as e:
+    print(f'❌ App import failed: {e}')
+    import traceback
+    traceback.print_exc()
+    exit(1)
+"
+
 # Create necessary directories
 mkdir -p /app/config /app/logs /app/static
 
@@ -61,11 +76,7 @@ export GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT:-service-execution-uat-bb7}
 echo "🚀 Starting Flask application on port $PORT..."
 echo "📁 Config file exists: $([ -f /app/config/config.yaml ] && echo 'YES' || echo 'NO')"
 
-# Use gunicorn for production (more stable than Flask dev server)
-if [ "$FLASK_ENV" = "production" ]; then
-    echo "🌐 Starting with Gunicorn (production mode)..."
-    exec gunicorn --bind 0.0.0.0:$PORT --worker-class eventlet -w 1 --timeout 120 --preload --access-logfile - --error-logfile - app:app
-else
-    echo "🔧 Starting with Flask dev server..."
-    exec python app.py
-fi
+# For simplicity and reliability, use Flask's built-in server
+# Note: While not ideal for heavy production loads, it's sufficient for Phase 0 individual instances
+echo "🚀 Starting Flask application directly..."
+exec python app.py
