@@ -15,7 +15,7 @@ google-cloud-aiplatform==1.26.1
 google-cloud-secret-manager==2.16.2
 google-auth==2.19.1
 
-# HTTP requests
+# HTTP requests (required for JIRA API integration)
 requests==2.31.0
 
 # Environment variables support
