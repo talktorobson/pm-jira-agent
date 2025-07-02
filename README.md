@@ -89,6 +89,11 @@ Your Request → AI Processing → Quality Review → Jira Ticket
 - **[User Guide](docs/USER_GUIDE.md)** - Complete guide for product managers
 - **[FAQ](docs/FAQ.md)** - Common questions and answers
 - **[Best Practices](docs/BEST_PRACTICES.md)** - Tips for optimal results
+- **[Technical Setup](docs/TECHNICAL_SETUP.md)** - Implementation guide
+- **[Admin Guide](docs/ADMIN_GUIDE.md)** - System management
+
+### 🚀 Future Roadmap
+- **[SaaS Multi-User Roadmap](ROADMAP-TO-SAAS-MULTI-USER.md)** - Complete plan to scale to enterprise SaaS platform
 
 ### 🔗 Quick Links
 - **Jira Project**: [AHSSI](https://jira.adeo.com/projects/AHSSI)
