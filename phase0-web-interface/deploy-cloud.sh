@@ -206,9 +206,15 @@ deploy_google_cloud_run() {
         --region "$REGION" \
         --allow-unauthenticated \
         --port 5000 \
-        --memory 512Mi \
-        --timeout 300 \
-        --max-instances 10
+        --memory 1Gi \
+        --cpu 1 \
+        --timeout 900 \
+        --max-instances 10 \
+        --min-instances 0 \
+        --concurrency 80 \
+        --cpu-throttling \
+        --set-env-vars="FLASK_ENV=production,PORT=5000" \
+        --execution-environment gen2
     
     # Set environment variables
     if [ -f .env ]; then
