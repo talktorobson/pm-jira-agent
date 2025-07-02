@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM Jira Agent</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { 
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .config-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .config-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .form-group { 
+            margin-bottom: 25px; 
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        textarea, select, input { 
+            width: 100%; 
+            padding: 14px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px; 
+            font-size: 15px;
+            font-family: inherit;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        
+        textarea:focus, select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea { 
+            min-height: 140px; 
+            resize: vertical;
+            line-height: 1.5;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .btn { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            border: none;
+            padding: 16px 32px; 
+            border-radius: 8px; 
+            font-size: 16px;
+            cursor: pointer; 
+            font-weight: 600;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+        
+        .btn:hover:not(:disabled) { 
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled { 
+            background: linear-gradient(135deg, #ccc 0%, #999 100%);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress-section { 
+            display: none; 
+            margin: 30px 0; 
+            padding: 30px;
+            background: #f8f9fa; 
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .progress-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .progress-header h3 {
+            color: #495057;
+            margin-left: 10px;
+        }
+        
+        .progress-bar { 
+            width: 100%; 
+            height: 10px; 
+            background: #e9ecef;
+            border-radius: 5px; 
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+            border-radius: 5px;
+        }
+        
+        .progress-text {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        
+        .agent-status {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            font-size: 14px;
+        }
+        
+        .agent-name {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .result-section { 
+            display: none; 
+            margin: 30px 0; 
+            padding: 30px;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border-radius: 12px;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .result-header h3 {
+            color: #155724;
+            margin-left: 10px;
+        }
+        
+        .result-item {
+            margin-bottom: 12px;
+            color: #155724;
+        }
+        
+        .result-item strong {
+            display: inline-block;
+            width: 140px;
+        }
+        
+        .ticket-link {
+            color: #155724;
+            text-decoration: none;
+            font-weight: 600;
+            border-bottom: 2px solid transparent;
+            transition: border-color 0.3s;
+        }
+        
+        .ticket-link:hover {
+            border-bottom-color: #155724;
+        }
+        
+        .error-section { 
+            display: none; 
+            margin: 30px 0; 
+            padding: 30px;
+            background: linear-gradient(135deg, #f8d7da 0%, #f1aeb5 100%);
+            border-radius: 12px;
+            border: 1px solid #f1aeb5;
+        }
+        
+        .error-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .error-header h3 {
+            color: #721c24;
+            margin-left: 10px;
+        }
+        
+        .error-message {
+            color: #721c24;
+            line-height: 1.5;
+        }
+        
+        .quality-score {
+            display: inline-flex;
+            align-items: center;
+            background: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .quality-score.excellent { color: #28a745; }
+        .quality-score.good { color: #17a2b8; }
+        .quality-score.fair { color: #ffc107; }
+        .quality-score.poor { color: #dc3545; }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .example-requests {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .example-requests h4 {
+            margin-bottom: 12px;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .example-item {
+            background: white;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 13px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .example-item:hover {
+            background: #e9ecef;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 12px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/config" class="config-link">⚙️ Settings</a>
+            <h1>🤖 PM Jira Agent</h1>
+            <p>Transform ideas into professional Jira tickets in under 2 minutes</p>
+        </div>
+        
+        <div class="content">
+            <form id="ticketForm">
+                <div class="example-requests">
+                    <h4>💡 Example Requests (click to use):</h4>
+                    <div class="example-item" onclick="setExample('Add user authentication with OAuth 2.0 integration to improve security and enable single sign-on for enterprise customers')">
+                        Add user authentication with OAuth 2.0 integration
+                    </div>
+                    <div class="example-item" onclick="setExample('Implement real-time notifications for order status updates that work across web and mobile platforms')">
+                        Implement real-time notifications for order updates
+                    </div>
+                    <div class="example-item" onclick="setExample('Fix dashboard loading performance issue where initial page load takes 8+ seconds due to inefficient database queries')">
+                        Fix dashboard performance issue with slow loading
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userRequest">What do you want to build or fix? *</label>
+                    <textarea 
+                        id="userRequest" 
+                        required
+                        placeholder="Describe your request in detail. Be specific about the functionality, user impact, and business value. For example: 'Add user authentication with OAuth 2.0 integration to improve security and enable single sign-on for enterprise customers'"
+                    ></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="priority">Priority</label>
+                        <select id="priority">
+                            <option value="Low">Low</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="issueType">Issue Type</label>
+                        <select id="issueType">
+                            <option value="Story" selected>Story</option>
+                            <option value="Task">Task</option>
+                            <option value="Bug">Bug</option>
+                            <option value="Epic">Epic</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="stakeholder">Stakeholder (optional)</label>
+                    <input type="text" id="stakeholder" placeholder="Who requested this or who will use it? e.g., 'Security Team', 'Mobile Users'">
+                </div>
+                
+                <button type="submit" class="btn" id="createBtn">
+                    Create Professional Jira Ticket
+                </button>
+            </form>
+            
+            <div id="progress" class="progress-section">
+                <div class="progress-header">
+                    <div class="spinner"></div>
+                    <h3>AI Agents Working on Your Request</h3>
+                </div>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div id="progressText" class="progress-text">Initializing AI agents...</div>
+                <div id="agentStatus" class="agent-status">
+                    <div class="agent-name">System</div>
+                    <div>Preparing to analyze your request...</div>
+                </div>
+            </div>
+            
+            <div id="result" class="result-section">
+                <div class="result-header">
+                    <span style="font-size: 24px;">✅</span>
+                    <h3>Ticket Created Successfully!</h3>
+                </div>
+                <div class="result-item">
+                    <strong>Ticket:</strong> 
+                    <a id="ticketLink" target="_blank" class="ticket-link">View in Jira</a>
+                </div>
+                <div class="result-item">
+                    <strong>Quality Score:</strong> 
+                    <span id="qualityScore" class="quality-score">95%</span>
+                </div>
+                <div class="result-item">
+                    <strong>Processing Time:</strong> 
+                    <span id="processingTime">2.1s</span>
+                </div>
+                <div class="result-item">
+                    <strong>Next Steps:</strong> 
+                    Review the ticket, assign to a team member, and add to your sprint backlog
+                </div>
+            </div>
+            
+            <div id="error" class="error-section">
+                <div class="error-header">
+                    <span style="font-size: 24px;">❌</span>
+                    <h3>Error Creating Ticket</h3>
+                </div>
+                <div id="errorMessage" class="error-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize SocketIO connection
+        const socket = io();
+        
+        // DOM elements
+        const form = document.getElementById('ticketForm');
+        const createBtn = document.getElementById('createBtn');
+        const progress = document.getElementById('progress');
+        const result = document.getElementById('result');
+        const error = document.getElementById('error');
+        const userRequestField = document.getElementById('userRequest');
+        
+        let currentWorkflowId = null;
+        let startTime = null;
+        
+        // Example request setter
+        function setExample(text) {
+            userRequestField.value = text;
+            userRequestField.focus();
+        }
+        
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userRequest = document.getElementById('userRequest').value.trim();
+            if (!userRequest) {
+                alert('Please describe what you want to build or fix');
+                return;
+            }
+            
+            if (userRequest.length < 20) {
+                alert('Please provide more detail in your request (at least 20 characters)');
+                return;
+            }
+            
+            startWorkflow(userRequest);
+        });
+        
+        async function startWorkflow(userRequest) {
+            try {
+                // Reset UI
+                createBtn.disabled = true;
+                createBtn.innerHTML = '<div class="spinner" style="margin-right: 8px;"></div>Creating...';
+                progress.style.display = 'block';
+                result.style.display = 'none';
+                error.style.display = 'none';
+                
+                startTime = Date.now();
+                
+                // Send request to backend
+                const response = await fetch('/api/create-ticket', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_request: userRequest,
+                        context: {
+                            priority: document.getElementById('priority').value,
+                            issue_type: document.getElementById('issueType').value,
+                            stakeholder: document.getElementById('stakeholder').value
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                currentWorkflowId = data.workflow_id;
+                
+                console.log('Workflow started:', currentWorkflowId);
+                
+            } catch (err) {
+                console.error('Error starting workflow:', err);
+                showError('Failed to start workflow: ' + err.message);
+            }
+        }
+        
+        // Socket event handlers
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+        
+        socket.on('workflow_start', (data) => {
+            if (data.workflow_id !== currentWorkflowId) return;
+            console.log('Workflow started:', data);
+            updateProgress(5, data.message || 'Workflow started');
+        });
+        
+        socket.on('workflow_update', (data) => {
+            if (data.workflow_id !== currentWorkflowId) return;
+            
+            console.log('Workflow update:', data);
+            
+            if (data.progress !== undefined) {
+                updateProgress(data.progress, data.message || 'Processing...');
+            }
+            
+            if (data.agent) {
+                updateAgentStatus(data.agent, data.message || 'Working...');
+            }
+        });
+        
+        socket.on('workflow_complete', (data) => {
+            if (data.workflow_id !== currentWorkflowId) return;
+            
+            console.log('Workflow completed:', data);
+            
+            const result = data.result;
+            if (result && result.success) {
+                showResult(result);
+            } else {
+                showError(result?.error || 'Unknown error occurred');
+            }
+        });
+        
+        socket.on('workflow_error', (data) => {
+            if (data.workflow_id !== currentWorkflowId) return;
+            
+            console.log('Workflow error:', data);
+            showError(data.error || 'Unknown error occurred');
+        });
+        
+        function updateProgress(progressValue, message) {
+            document.getElementById('progressFill').style.width = progressValue + '%';
+            document.getElementById('progressText').textContent = message;
+        }
+        
+        function updateAgentStatus(agent, message) {
+            const statusDiv = document.getElementById('agentStatus');
+            statusDiv.innerHTML = `
+                <div class="agent-name">${agent}</div>
+                <div>${message}</div>
+            `;
+        }
+        
+        function showResult(resultData) {
+            progress.style.display = 'none';
+            result.style.display = 'block';
+            
+            // Update result display
+            const ticketLink = document.getElementById('ticketLink');
+            ticketLink.href = resultData.ticket_url || '#';
+            ticketLink.textContent = resultData.ticket_key || 'View Ticket';
+            
+            // Quality score with color coding
+            const qualityScore = (resultData.quality_metrics?.final_quality_score || 0.9) * 100;
+            const qualityElement = document.getElementById('qualityScore');
+            qualityElement.textContent = qualityScore.toFixed(0) + '%';
+            
+            // Color code quality score
+            qualityElement.className = 'quality-score ';
+            if (qualityScore >= 90) qualityElement.className += 'excellent';
+            else if (qualityScore >= 80) qualityElement.className += 'good';
+            else if (qualityScore >= 70) qualityElement.className += 'fair';
+            else qualityElement.className += 'poor';
+            
+            // Processing time
+            const processingTime = resultData.total_execution_time || 
+                                 (startTime ? (Date.now() - startTime) / 1000 : 0);
+            document.getElementById('processingTime').textContent = processingTime.toFixed(1) + 's';
+            
+            resetForm();
+        }
+        
+        function showError(message) {
+            progress.style.display = 'none';
+            error.style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+            resetForm();
+        }
+        
+        function resetForm() {
+            createBtn.disabled = false;
+            createBtn.textContent = 'Create Professional Jira Ticket';
+            currentWorkflowId = null;
+            startTime = null;
+        }
+        
+        // Character counter for textarea
+        userRequestField.addEventListener('input', function() {
+            const length = this.value.length;
+            const minLength = 20;
+            
+            if (length > 0 && length < minLength) {
+                this.style.borderColor = '#ffc107';
+            } else if (length >= minLength) {
+                this.style.borderColor = '#28a745';
+            } else {
+                this.style.borderColor = '#e1e5e9';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration - PM Jira Agent</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { 
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .back-link {
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .back-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .header-title {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            border-top: 1px solid #e9ecef;
+            padding-top: 30px;
+            margin-top: 30px;
+        }
+        
+        .section:first-child {
+            border-top: none;
+            margin-top: 0;
+            padding-top: 0;
+        }
+        
+        .section h3 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .section h3 span {
+            margin-right: 10px;
+        }
+        
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        input, textarea, select { 
+            width: 100%; 
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px; 
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .btn { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            border: none;
+            padding: 16px 32px; 
+            border-radius: 8px; 
+            font-size: 16px;
+            cursor: pointer; 
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.3s;
+            margin-right: 15px;
+        }
+        
+        .btn:hover:not(:disabled) { 
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled { 
+            background: linear-gradient(135deg, #ccc 0%, #999 100%);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            box-shadow: 0 10px 25px rgba(108, 117, 125, 0.4);
+        }
+        
+        .help-text {
+            font-size: 13px;
+            color: #6c757d;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+        
+        .config-preview {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .config-preview h4 {
+            margin-bottom: 15px;
+            color: #495057;
+        }
+        
+        .config-preview pre {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f1aeb5;
+            color: #721c24;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+        
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: normal;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 12px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .back-link {
+                margin-bottom: 15px;
+            }
+            
+            .header-title {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-link">← Back to Ticket Creation</a>
+            <div class="header-title">
+                <h1>⚙️ Configuration</h1>
+                <p>Customize your PM Jira Agent settings</p>
+            </div>
+            <div style="width: 120px;"></div> <!-- Spacer for centering -->
+        </div>
+        
+        <div class="content">
+            <div id="alertSuccess" class="alert alert-success">
+                <strong>Success!</strong> Configuration saved successfully.
+            </div>
+            
+            <div id="alertError" class="alert alert-error">
+                <strong>Error!</strong> <span id="errorText">Failed to save configuration.</span>
+            </div>
+            
+            <form id="configForm">
+                <div class="section">
+                    <h3><span>👤</span>Personal Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="userName">Your Name</label>
+                            <input type="text" id="userName" value="{{ current_config.user_info.name if current_config.user_info else '' }}" placeholder="John Doe">
+                            <div class="help-text">Used in ticket metadata and notifications</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="userEmail">Your Email</label>
+                            <input type="email" id="userEmail" value="{{ current_config.user_info.email if current_config.user_info else '' }}" placeholder="john.doe@company.com">
+                            <div class="help-text">Used for JIRA authentication and ticket assignment</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="userTeam">Team/Department</label>
+                        <input type="text" id="userTeam" value="{{ current_config.user_info.team if current_config.user_info else '' }}" placeholder="Product Team">
+                        <div class="help-text">Your team or department name</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3><span>🎫</span>JIRA Configuration</h3>
+                    <div class="form-group">
+                        <label for="jiraUrl">JIRA Base URL</label>
+                        <input type="url" id="jiraUrl" 
+                               value="{{ current_config.jira.base_url if current_config.jira else '' }}" 
+                               placeholder="https://yourcompany.atlassian.net">
+                        <div class="help-text">Your JIRA instance URL (without /browse or project paths)</div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="jiraProject">Default Project Key</label>
+                            <input type="text" id="jiraProject" 
+                                   value="{{ current_config.jira.project_key if current_config.jira else '' }}" 
+                                   placeholder="PROJ" style="text-transform: uppercase;">
+                            <div class="help-text">Default JIRA project for ticket creation</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="defaultIssueType">Default Issue Type</label>
+                            <select id="defaultIssueType">
+                                <option value="Story" {% if current_config.jira and current_config.jira.default_issue_type == 'Story' %}selected{% endif %}>Story</option>
+                                <option value="Task" {% if current_config.jira and current_config.jira.default_issue_type == 'Task' %}selected{% endif %}>Task</option>
+                                <option value="Bug" {% if current_config.jira and current_config.jira.default_issue_type == 'Bug' %}selected{% endif %}>Bug</option>
+                                <option value="Epic" {% if current_config.jira and current_config.jira.default_issue_type == 'Epic' %}selected{% endif %}>Epic</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3><span>📚</span>GitBook Integration (Optional)</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="gitbookEnabled" 
+                               {% if current_config.gitbook and current_config.gitbook.enabled %}checked{% endif %}>
+                        <label for="gitbookEnabled">Enable GitBook integration for context research</label>
+                    </div>
+                    <div class="form-group" id="gitbookSpaceGroup">
+                        <label for="gitbookSpace">GitBook Space ID</label>
+                        <input type="text" id="gitbookSpace" 
+                               value="{{ current_config.gitbook.space_id if current_config.gitbook else '' }}" 
+                               placeholder="your-space-id">
+                        <div class="help-text">Found in your GitBook space URL or API settings</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3><span>🎨</span>Custom Prompts & Style</h3>
+                    <div class="form-group">
+                        <label for="companyContext">Company/Product Context</label>
+                        <textarea id="companyContext" 
+                                  placeholder="Describe your company, product, and team context...">{{ current_config.custom_prompts.company_context if current_config.custom_prompts else '' }}</textarea>
+                        <div class="help-text">Help the AI understand your company and product context for better tickets</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="writingStyle">Writing Style Preference</label>
+                        <select id="writingStyle">
+                            <option value="professional" {% if current_config.custom_prompts and current_config.custom_prompts.writing_style == 'professional' %}selected{% endif %}>Professional</option>
+                            <option value="casual" {% if current_config.custom_prompts and current_config.custom_prompts.writing_style == 'casual' %}selected{% endif %}>Casual</option>
+                            <option value="technical" {% if current_config.custom_prompts and current_config.custom_prompts.writing_style == 'technical' %}selected{% endif %}>Technical</option>
+                            <option value="business" {% if current_config.custom_prompts and current_config.custom_prompts.writing_style == 'business' %}selected{% endif %}>Business-focused</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3><span>🏢</span>Business Rules</h3>
+                    <div class="form-group">
+                        <label for="uiGuidelines">UI/UX Guidelines</label>
+                        <textarea id="uiGuidelines" 
+                                  placeholder="Your UI/UX standards and guidelines...">{{ current_config.business_rules.ui_ux_guidelines if current_config.business_rules else '' }}</textarea>
+                        <div class="help-text">UI/UX standards that should be applied to feature requests</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="securityRules">Security Requirements</label>
+                        <textarea id="securityRules" 
+                                  placeholder="Security policies and requirements...">{{ current_config.business_rules.security_requirements if current_config.business_rules else '' }}</textarea>
+                        <div class="help-text">Security policies that should be considered in all tickets</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="performanceRules">Performance Standards</label>
+                        <textarea id="performanceRules" 
+                                  placeholder="Performance requirements and standards...">{{ current_config.business_rules.performance_standards if current_config.business_rules else '' }}</textarea>
+                        <div class="help-text">Performance requirements and optimization standards</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3><span>👥</span>Stakeholder Mapping</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="securityTeam">Security Team Contact</label>
+                            <input type="text" id="securityTeam" placeholder="security@company.com or Security Team">
+                            <div class="help-text">Who to involve for security-related requests</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="uxTeam">UX Team Contact</label>
+                            <input type="text" id="uxTeam" placeholder="ux@company.com or UX Team">
+                            <div class="help-text">Who to involve for design-related requests</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="engineeringTeam">Engineering Contact</label>
+                            <input type="text" id="engineeringTeam" placeholder="dev@company.com or Engineering Team">
+                            <div class="help-text">Who to involve for technical implementation</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="qaTeam">QA Team Contact</label>
+                            <input type="text" id="qaTeam" placeholder="qa@company.com or QA Team">
+                            <div class="help-text">Who to involve for testing requirements</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e9ecef;">
+                    <button type="submit" class="btn" id="saveBtn">
+                        Save Configuration
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">
+                        Reset to Defaults
+                    </button>
+                </div>
+            </form>
+            
+            <div class="config-preview">
+                <h4>📄 Configuration Preview</h4>
+                <pre id="configPreview"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load stakeholder mapping from current config
+        const currentConfig = {{ current_config | tojson }};
+        
+        // Populate stakeholder fields if they exist
+        if (currentConfig.custom_prompts && currentConfig.custom_prompts.stakeholder_mapping) {
+            const mapping = currentConfig.custom_prompts.stakeholder_mapping;
+            document.getElementById('securityTeam').value = mapping['Security Team'] || '';
+            document.getElementById('uxTeam').value = mapping['UX Team'] || '';
+            document.getElementById('engineeringTeam').value = mapping['Engineering'] || '';
+            document.getElementById('qaTeam').value = mapping['QA Team'] || '';
+        }
+        
+        // Toggle GitBook fields based on checkbox
+        document.getElementById('gitbookEnabled').addEventListener('change', function() {
+            const spaceGroup = document.getElementById('gitbookSpaceGroup');
+            spaceGroup.style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // Initial state
+        document.getElementById('gitbookSpaceGroup').style.display = 
+            document.getElementById('gitbookEnabled').checked ? 'block' : 'none';
+        
+        // Auto-update preview
+        function updatePreview() {
+            const config = collectFormData();
+            document.getElementById('configPreview').textContent = JSON.stringify(config, null, 2);
+        }
+        
+        // Collect form data
+        function collectFormData() {
+            return {
+                user_info: {
+                    name: document.getElementById('userName').value,
+                    email: document.getElementById('userEmail').value,
+                    team: document.getElementById('userTeam').value
+                },
+                jira: {
+                    base_url: document.getElementById('jiraUrl').value,
+                    project_key: document.getElementById('jiraProject').value.toUpperCase(),
+                    default_issue_type: document.getElementById('defaultIssueType').value,
+                    default_priority: 'Medium'
+                },
+                gitbook: {
+                    enabled: document.getElementById('gitbookEnabled').checked,
+                    space_id: document.getElementById('gitbookSpace').value
+                },
+                custom_prompts: {
+                    company_context: document.getElementById('companyContext').value,
+                    writing_style: document.getElementById('writingStyle').value,
+                    stakeholder_mapping: {
+                        'Security Team': document.getElementById('securityTeam').value,
+                        'UX Team': document.getElementById('uxTeam').value,
+                        'Engineering': document.getElementById('engineeringTeam').value,
+                        'QA Team': document.getElementById('qaTeam').value
+                    }
+                },
+                business_rules: {
+                    ui_ux_guidelines: document.getElementById('uiGuidelines').value,
+                    security_requirements: document.getElementById('securityRules').value,
+                    performance_standards: document.getElementById('performanceRules').value
+                }
+            };
+        }
+        
+        // Add event listeners for live preview
+        const formElements = document.querySelectorAll('input, textarea, select');
+        formElements.forEach(element => {
+            element.addEventListener('input', updatePreview);
+            element.addEventListener('change', updatePreview);
+        });
+        
+        // Initial preview
+        updatePreview();
+        
+        // Form submission
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const saveBtn = document.getElementById('saveBtn');
+            const originalText = saveBtn.textContent;
+            
+            try {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+                
+                const config = collectFormData();
+                
+                const response = await fetch('/api/save-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showAlert('success', 'Configuration saved successfully!');
+                } else {
+                    showAlert('error', result.error || 'Failed to save configuration');
+                }
+                
+            } catch (err) {
+                console.error('Error saving config:', err);
+                showAlert('error', 'Error saving configuration: ' + err.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
+            }
+        });
+        
+        function showAlert(type, message) {
+            const successAlert = document.getElementById('alertSuccess');
+            const errorAlert = document.getElementById('alertError');
+            
+            // Hide both alerts first
+            successAlert.style.display = 'none';
+            errorAlert.style.display = 'none';
+            
+            if (type === 'success') {
+                successAlert.style.display = 'block';
+                setTimeout(() => successAlert.style.display = 'none', 5000);
+            } else {
+                document.getElementById('errorText').textContent = message;
+                errorAlert.style.display = 'block';
+                setTimeout(() => errorAlert.style.display = 'none', 5000);
+            }
+        }
+        
+        function resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+                // Reset form to default values
+                document.getElementById('userName').value = 'Product Manager';
+                document.getElementById('userEmail').value = 'pm@company.com';
+                document.getElementById('userTeam').value = 'Product Team';
+                document.getElementById('jiraUrl').value = 'https://yourcompany.atlassian.net';
+                document.getElementById('jiraProject').value = 'PROJ';
+                document.getElementById('defaultIssueType').value = 'Story';
+                document.getElementById('gitbookEnabled').checked = false;
+                document.getElementById('gitbookSpace').value = '';
+                document.getElementById('companyContext').value = 'We are a technology company focused on innovative solutions';
+                document.getElementById('writingStyle').value = 'professional';
+                document.getElementById('uiGuidelines').value = 'Follow modern UI/UX best practices';
+                document.getElementById('securityRules').value = 'All user data must be secure';
+                document.getElementById('performanceRules').value = 'Optimize for fast user experience';
+                document.getElementById('securityTeam').value = '';
+                document.getElementById('uxTeam').value = '';
+                document.getElementById('engineeringTeam').value = '';
+                document.getElementById('qaTeam').value = '';
+                
+                updatePreview();
+                
+                // Trigger GitBook visibility
+                document.getElementById('gitbookSpaceGroup').style.display = 'none';
+            }
+        }
+        
+        // Auto-uppercase project key
+        document.getElementById('jiraProject').addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+# PM Jira Agent - Phase 0 Configuration Template
+# Copy this file to config.yaml and customize for your setup
+
+user_info:
+  name: "Product Manager"
+  email: "pm@company.com"
+  team: "Product Team"
+
+# JIRA Configuration - REQUIRED
+jira:
+  base_url: "https://yourcompany.atlassian.net"
+  project_key: "PROJ"
+  default_issue_type: "Story"
+  default_priority: "Medium"
+
+# GitBook Configuration - OPTIONAL
+gitbook:
+  enabled: false
+  space_id: ""
+
+# Custom Prompts and Context
+custom_prompts:
+  company_context: "We are a technology company focused on innovative solutions"
+  writing_style: "professional"
+  stakeholder_mapping:
+    Security Team: "security@company.com"
+    UX Team: "ux@company.com"
+    Engineering: "dev@company.com"
+    QA Team: "qa@company.com"
+
+# Business Rules
+business_rules:
+  ui_ux_guidelines: "Follow modern UI/UX best practices and accessibility standards"
+  security_requirements: "All user data must be secured and encrypted. Follow OWASP guidelines."
+  performance_standards: "Optimize for fast user experience. Page load times should be under 3 seconds."
+
+# Template Preferences (for future use)
+templates:
+  feature_request: |
+    **Business Value**: {business_value}
+    **User Impact**: {user_impact}
+    **Success Metrics**: {success_metrics}
+    
+  bug_report: |
+    **Issue**: {issue_description}
+    **Impact**: {user_impact}
+    **Reproduction Steps**: {reproduction_steps}
