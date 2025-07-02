@@ -115,10 +115,106 @@ class MockAgent:
                 "execution_time": 0.7
             }
 
+class RealGitBookIntegration:
+    """Real GitBook API integration for Phase 0"""
+    
+    def __init__(self):
+        self.gitbook_api_url = os.getenv('GITBOOK_API_URL', 'https://gitbook-api-jlhinciqia-od.a.run.app')
+        self.gitbook_api_key = os.getenv('GITBOOK_API_KEY')
+        self.space_id = os.getenv('GITBOOK_SPACE_ID', 'Jw57BieQciFYoCHgwVlm')  # SSI Space
+        
+    def is_configured(self) -> bool:
+        """Check if GitBook API is properly configured"""
+        return bool(self.gitbook_api_key)
+    
+    def search_content(self, query: str) -> Dict[str, Any]:
+        """Search GitBook content via your GCP backend"""
+        if not self.is_configured():
+            logger.warning("GitBook not configured, skipping context search")
+            return {"success": False, "error": "GitBook not configured"}
+        
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {self.gitbook_api_key}'
+            }
+            
+            payload = {
+                "action": "search",
+                "space_id": self.space_id,
+                "query": query,
+                "limit": 5
+            }
+            
+            response = requests.post(self.gitbook_api_url, headers=headers, json=payload, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"GitBook search successful: {len(result.get('results', []))} results found")
+                return {
+                    "success": True,
+                    "results": result.get('results', []),
+                    "query": query
+                }
+            else:
+                logger.error(f"GitBook API error: {response.status_code} - {response.text}")
+                return {
+                    "success": False,
+                    "error": f"GitBook API error: {response.status_code}"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error searching GitBook: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def get_content(self, space_id: str = None) -> Dict[str, Any]:
+        """Get GitBook space content via your GCP backend"""
+        if not self.is_configured():
+            return {"success": False, "error": "GitBook not configured"}
+        
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {self.gitbook_api_key}'
+            }
+            
+            payload = {
+                "action": "get_content",
+                "space_id": space_id or self.space_id
+            }
+            
+            response = requests.post(self.gitbook_api_url, headers=headers, json=payload, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info("GitBook content retrieved successfully")
+                return {
+                    "success": True,
+                    "content": result.get('content', {}),
+                    "space_id": space_id or self.space_id
+                }
+            else:
+                logger.error(f"GitBook API error: {response.status_code}")
+                return {
+                    "success": False,
+                    "error": f"GitBook API error: {response.status_code}"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error getting GitBook content: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
 class RealJiraIntegration:
     """Real JIRA API integration for Phase 0"""
     
     def __init__(self):
+        self.jira_api_url = os.getenv('JIRA_API_URL', 'https://jira-api-jlhinciqia-od.a.run.app')
         self.jira_base_url = os.getenv('JIRA_BASE_URL', 'https://jira.adeo.com')
         self.jira_email = os.getenv('JIRA_EMAIL')
         self.jira_token = os.getenv('JIRA_API_TOKEN')
@@ -129,7 +225,7 @@ class RealJiraIntegration:
         return bool(self.jira_email and self.jira_token)
     
     def create_ticket(self, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a real JIRA ticket"""
+        """Create a real JIRA ticket via GCP backend"""
         if not self.is_configured():
             logger.warning("JIRA not configured, falling back to mock")
             return {
@@ -139,54 +235,53 @@ class RealJiraIntegration:
             }
         
         try:
-            # Prepare authentication
-            auth_string = f"{self.jira_email}:{self.jira_token}"
-            auth_bytes = base64.b64encode(auth_string.encode()).decode()
-            
+            # Use GCP backend for JIRA API calls
             headers = {
-                'Authorization': f'Basic {auth_bytes}',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {self.jira_token}'
             }
             
-            # Prepare ticket payload
             payload = {
-                "fields": {
-                    "project": {"key": self.project_key},
-                    "summary": ticket_data.get("title", "AI Generated Ticket"),
-                    "description": ticket_data.get("description", "Generated by PM Jira Agent"),
-                    "issuetype": {"name": ticket_data.get("issue_type", "Story")},
-                    "priority": {"name": ticket_data.get("priority", "Medium")}
-                }
+                "action": "create_ticket",
+                "project_key": self.project_key,
+                "summary": ticket_data.get("title", "AI Generated Ticket"),
+                "description": ticket_data.get("description", "Generated by PM Jira Agent Phase 0"),
+                "issue_type": ticket_data.get("issue_type", "Story"),
+                "priority": ticket_data.get("priority", "Medium")
             }
             
-            # Create the ticket
-            url = f"{self.jira_base_url}/rest/api/3/issue"
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            response = requests.post(self.jira_api_url, headers=headers, json=payload, timeout=15)
             
-            if response.status_code == 201:
-                ticket_data = response.json()
-                ticket_key = ticket_data["key"]
-                ticket_url = f"{self.jira_base_url}/browse/{ticket_key}"
-                
-                logger.info(f"Successfully created JIRA ticket: {ticket_key}")
-                return {
-                    "success": True,
-                    "ticket_created": True,
-                    "ticket_key": ticket_key,
-                    "ticket_url": ticket_url,
-                    "execution_time": 1.2
-                }
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("success"):
+                    ticket_key = result.get("ticket_key")
+                    ticket_url = f"{self.jira_base_url}/browse/{ticket_key}"
+                    
+                    logger.info(f"Successfully created JIRA ticket via GCP backend: {ticket_key}")
+                    return {
+                        "success": True,
+                        "ticket_created": True,
+                        "ticket_key": ticket_key,
+                        "ticket_url": ticket_url,
+                        "execution_time": 1.5
+                    }
+                else:
+                    logger.error(f"JIRA backend error: {result.get('error')}")
+                    return {
+                        "success": False,
+                        "error": result.get("error", "Unknown backend error")
+                    }
             else:
-                logger.error(f"JIRA API error: {response.status_code} - {response.text}")
+                logger.error(f"JIRA backend API error: {response.status_code} - {response.text}")
                 return {
                     "success": False,
-                    "error": f"JIRA API error: {response.status_code}",
+                    "error": f"Backend API error: {response.status_code}",
                     "details": response.text
                 }
                 
         except Exception as e:
-            logger.error(f"Error creating JIRA ticket: {e}")
+            logger.error(f"Error creating JIRA ticket via backend: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -199,8 +294,9 @@ class EnhancedMultiAgentOrchestrator:
         self.project_id = project_id
         self.location = location
         
-        # Initialize JIRA integration
+        # Initialize backend integrations
         self.jira_integration = RealJiraIntegration()
+        self.gitbook_integration = RealGitBookIntegration()
         
         # Initialize agents (or mocks if not available)
         if PMAgent is not None:
@@ -350,6 +446,17 @@ class EnhancedMultiAgentOrchestrator:
             
             tracker.update("PM Agent", 20, "Analyzing similar tickets and patterns...")
             time.sleep(0.5)
+            
+            # Phase 1a: Context Research (if GitBook configured)
+            context_research = None
+            if self.gitbook_integration.is_configured():
+                tracker.update("PM Agent", 15, "Researching context from GitBook...")
+                context_research = self.gitbook_integration.search_content(user_request)
+                if context_research.get("success"):
+                    logger.info(f"Found {len(context_research.get('results', []))} relevant GitBook entries")
+                    context = context or {}
+                    context["gitbook_research"] = context_research
+                tracker.update("PM Agent", 20, "Context research completed")
             
             tracker.update("PM Agent", 25, "Creating initial ticket draft...")
             

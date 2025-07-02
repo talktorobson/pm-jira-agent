@@ -217,6 +217,13 @@ deploy_google_cloud_run() {
         --execution-environment gen2
     
     # Set environment variables
+    echo -e "${CYAN}Setting up environment variables...${NC}"
+    
+    # Set backend API URLs (your existing GCP functions)
+    gcloud run services update "$SERVICE_NAME" \
+        --region "$REGION" \
+        --set-env-vars="GITBOOK_API_URL=https://gitbook-api-jlhinciqia-od.a.run.app,JIRA_API_URL=https://jira-api-jlhinciqia-od.a.run.app,GITBOOK_SPACE_ID=Jw57BieQciFYoCHgwVlm"
+    
     if [ -f .env ]; then
         ENV_VARS=""
         while IFS='=' read -r key value; do
