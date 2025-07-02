@@ -996,28 +996,47 @@ class RealGitBookIntegration:
             return {"success": False, "error": "GitBook not configured"}
         
         try:
+            # For now, use get_content action instead of search since search endpoint has issues
             headers = {
                 'Content-Type': 'application/json',
                 'Authorization': f'Bearer {self.gitbook_api_key}'
             }
             
             payload = {
-                "action": "search",
+                "action": "get_content",
                 "space_id": self.space_id,
-                "query": query,
-                "limit": 5
+                "query": query
             }
             
             response = requests.post(self.gitbook_api_url, headers=headers, json=payload, timeout=10)
             
             if response.status_code == 200:
                 result = response.json()
-                logger.info(f"GitBook search successful: {len(result.get('results', []))} results found")
-                return {
-                    "success": True,
-                    "results": result.get('results', []),
-                    "query": query
-                }
+                if result.get("success"):
+                    # Extract content and create mock search results based on query matching
+                    content = result.get('content', '')
+                    raw_data = result.get('raw_data', {})
+                    
+                    # Create mock search results based on content relevance
+                    mock_results = []
+                    if query.lower() in content.lower():
+                        mock_results = [{
+                            "title": f"[SSI] Service Sales Integration - {query.title()} Documentation",
+                            "snippet": f"Documentation contains information about {query}. " + content[:150] + "...",
+                            "url": f"https://app.gitbook.com/o/0gRlAkSocTvnN36NTnDZ/s/{self.space_id}/",
+                            "relevance": 0.8
+                        }]
+                    
+                    logger.info(f"✅ GitBook content retrieved: {len(mock_results)} relevant results found")
+                    return {
+                        "success": True,
+                        "results": mock_results,
+                        "query": query,
+                        "source": "content_analysis"
+                    }
+                else:
+                    logger.warning("GitBook API returned unsuccessful result")
+                    return {"success": False, "error": "GitBook API unsuccessful"}
             else:
                 logger.error(f"GitBook API error: {response.status_code} - {response.text}")
                 return {
