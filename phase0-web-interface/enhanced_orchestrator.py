@@ -765,29 +765,42 @@ class RealJiraIntegration:
                 
             payload = {
                 "action": "create_ticket",
-                "project_key": self.project_key,
-                "summary": summary[:100],  # JIRA summary limit
-                "description": description,
-                "issue_type": ticket_data.get("issue_type", "Story"),
-                "priority": ticket_data.get("priority", "Medium")
+                "ticket_data": {
+                    "summary": summary[:100],  # JIRA summary limit
+                    "description": description,
+                    "issue_type": ticket_data.get("issue_type", "Story"),
+                    "priority": ticket_data.get("priority", "Medium")
+                }
             }
             
             response = requests.post(self.jira_api_url, headers=headers, json=payload, timeout=15)
             
-            if response.status_code == 200:
+            if response.status_code in [200, 201]:
                 result = response.json()
                 if result.get("success"):
-                    ticket_key = result.get("ticket_key")
-                    ticket_url = f"{self.jira_base_url}/browse/{ticket_key}"
+                    # Extract ticket key from the Cloud Function response
+                    data = result.get("data", {})
+                    ticket_key = data.get("key")
+                    ticket_id = data.get("id")
                     
-                    logger.info(f"Successfully created JIRA ticket via GCP backend: {ticket_key}")
-                    return {
-                        "success": True,
-                        "ticket_created": True,
-                        "ticket_key": ticket_key,
-                        "ticket_url": ticket_url,
-                        "execution_time": 1.5
-                    }
+                    if ticket_key:
+                        ticket_url = f"{self.jira_base_url}/browse/{ticket_key}"
+                        logger.info(f"Successfully created JIRA ticket via GCP backend: {ticket_key}")
+                        return {
+                            "success": True,
+                            "ticket_created": True,
+                            "key": ticket_key,
+                            "url": ticket_url,
+                            "id": ticket_id,
+                            "execution_time": 1.5
+                        }
+                    else:
+                        logger.error(f"JIRA ticket created but no key returned: {data}")
+                        return {
+                            "success": False,
+                            "error": "Ticket created but no key returned",
+                            "execution_time": 1.0
+                        }
                 else:
                     logger.error(f"JIRA backend error: {result.get('error')}")
                     return {
