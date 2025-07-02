@@ -67,10 +67,9 @@ def gitbook_api(request: Request):
             response = requests.get(url, headers=api_headers, timeout=30)
             
         elif action == "search":
-            # Search within space
-            url = f"https://api.gitbook.com/v1/spaces/{space_id}/search"
-            payload = {"query": query} if query else {}
-            response = requests.post(url, headers=api_headers, json=payload, timeout=30)
+            # Search within space content (no direct search endpoint, so get content and search)
+            url = f"https://api.gitbook.com/v1/spaces/{space_id}/content"
+            response = requests.get(url, headers=api_headers, timeout=30)
             
         else:
             return (json.dumps({"error": f"Unknown action: {action}"}), 400, headers)
@@ -79,28 +78,59 @@ def gitbook_api(request: Request):
         if response.status_code == 200:
             data = response.json()
             
-            # Extract content based on GitBook API structure
-            content = ""
-            if "content" in data:
-                content = data["content"].get("markdown", "") or data["content"].get("text", "") or str(data["content"])
-            elif "results" in data:
-                # Search results
-                content = "\n\n".join([
-                    result.get("content", {}).get("markdown", "") or 
-                    result.get("content", {}).get("text", "") or 
-                    str(result.get("content", ""))
-                    for result in data["results"][:5]  # Limit to top 5 results
-                ])
-            else:
-                content = data.get("markdown", "") or data.get("text", "") or json.dumps(data)
+            if action == "search":
+                # For search action, extract pages and search through them
+                query_lower = query.lower() if query else ""
+                search_results = []
+                
+                pages = data.get("pages", [])
+                for page in pages:
+                    title = page.get("title", "")
+                    description = page.get("description", "")
+                    page_url = page.get("urls", {}).get("app", "")
+                    
+                    # Simple search: check if query appears in title or description
+                    if query_lower and (query_lower in title.lower() or query_lower in description.lower()):
+                        search_results.append({
+                            "title": title,
+                            "snippet": description[:200] + ("..." if len(description) > 200 else ""),
+                            "url": page_url,
+                            "relevance": 1.0 if query_lower in title.lower() else 0.7
+                        })
+                
+                # If no matches found, return top pages for general context
+                if not search_results and pages:
+                    search_results = [{
+                        "title": page.get("title", ""),
+                        "snippet": page.get("description", "")[:200] + ("..." if len(page.get("description", "")) > 200 else ""),
+                        "url": page.get("urls", {}).get("app", ""),
+                        "relevance": 0.5
+                    } for page in pages[:3]]
+                
+                return (json.dumps({
+                    "success": True,
+                    "results": search_results,
+                    "query": query,
+                    "total_pages": len(pages),
+                    "action": action,
+                    "space_id": space_id
+                }), 200, headers)
             
-            return (json.dumps({
-                "success": True,
-                "content": content,
-                "raw_data": data,
-                "action": action,
-                "space_id": space_id
-            }), 200, headers)
+            else:
+                # For get_content action, extract content based on GitBook API structure
+                content = ""
+                if "content" in data:
+                    content = data["content"].get("markdown", "") or data["content"].get("text", "") or str(data["content"])
+                else:
+                    content = data.get("markdown", "") or data.get("text", "") or json.dumps(data)
+                
+                return (json.dumps({
+                    "success": True,
+                    "content": content,
+                    "raw_data": data,
+                    "action": action,
+                    "space_id": space_id
+                }), 200, headers)
             
         else:
             return (json.dumps({
