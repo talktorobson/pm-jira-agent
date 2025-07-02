@@ -684,49 +684,65 @@ class RealPMAgent(VertexAIAgent):
             raise Exception(f"❌ {self.agent_name} not configured - cannot analyze request")
         
         try:
-            # Step 1: Research GitBook documentation for relevant context
-            gitbook_integration = RealGitBookIntegration()
+            # Use context provided by orchestrator (already includes GitBook + JIRA research)
             gitbook_context = ""
-            if gitbook_integration.is_configured():
-                logger.info(f"Researching GitBook for: {user_request}")
-                gitbook_result = gitbook_integration.search_content(user_request)
-                if gitbook_result.get("success") and gitbook_result.get("results"):
-                    gitbook_context = "\n\n**Relevant Documentation Context:**\n"
-                    for result in gitbook_result["results"][:3]:
-                        gitbook_context += f"- {result.get('title', 'N/A')}: {result.get('snippet', 'N/A')}\n"
-                    logger.info(f"Found {len(gitbook_result['results'])} GitBook results")
-                else:
-                    logger.warning("No GitBook context found")
-            else:
-                logger.warning("GitBook not configured")
-            
-            # Step 2: Analyze similar JIRA tickets for patterns
-            jira_integration = RealJiraIntegration()
             similar_tickets_context = ""
-            if jira_integration.is_configured():
-                logger.info(f"Searching for similar JIRA tickets: {user_request}")
-                similar_result = jira_integration.search_similar_tickets(user_request, max_results=3)
-                if similar_result.get("success") and similar_result.get("similar_tickets"):
-                    similar_tickets_context = "\n\n**Similar JIRA Tickets for Reference:**\n"
-                    for ticket in similar_result["similar_tickets"]:
-                        similar_tickets_context += f"- {ticket['key']}: {ticket['summary']} (Priority: {ticket['priority']}, Status: {ticket['status']})\n"
-                        if ticket.get("description"):
-                            similar_tickets_context += f"  Description: {ticket['description']}\n"
-                    logger.info(f"Found {len(similar_result['similar_tickets'])} similar tickets")
-                else:
-                    logger.warning("No similar JIRA tickets found")
-            else:
-                logger.warning("JIRA integration not configured")
             
-            # Step 3: Create enhanced prompt with all context
+            # Extract GitBook research from context
+            if context and context.get("gitbook_research"):
+                gitbook_research = context["gitbook_research"]
+                if gitbook_research.get("success") and gitbook_research.get("results"):
+                    gitbook_context = "\n\n**📚 Relevant Documentation Context:**\n"
+                    for result in gitbook_research["results"][:3]:
+                        title = result.get('title', 'N/A')
+                        snippet = result.get('snippet', 'N/A')
+                        gitbook_context += f"- **{title}**: {snippet}\n"
+                    logger.info(f"✅ Using {len(gitbook_research['results'])} GitBook research results")
+                else:
+                    logger.info("ℹ️ GitBook research provided but no results found")
+            else:
+                logger.info("ℹ️ No GitBook research in context")
+            
+            # Extract similar tickets from context
+            if context and context.get("similar_tickets"):
+                similar_tickets = context["similar_tickets"]
+                if similar_tickets.get("success") and similar_tickets.get("similar_tickets"):
+                    similar_tickets_context = "\n\n**🎫 Similar JIRA Tickets for Reference:**\n"
+                    for ticket in similar_tickets["similar_tickets"][:3]:
+                        key = ticket.get('key', 'N/A')
+                        summary = ticket.get('summary', 'N/A')
+                        priority = ticket.get('priority', 'N/A')
+                        status = ticket.get('status', 'N/A')
+                        similar_tickets_context += f"- **{key}**: {summary}\n"
+                        similar_tickets_context += f"  Priority: {priority}, Status: {status}\n"
+                        if ticket.get("description"):
+                            desc = ticket["description"][:100] + "..." if len(ticket["description"]) > 100 else ticket["description"]
+                            similar_tickets_context += f"  Context: {desc}\n"
+                    logger.info(f"✅ Using {len(similar_tickets['similar_tickets'])} similar tickets for analysis")
+                else:
+                    logger.info("ℹ️ Similar tickets research provided but no results found")
+            else:
+                logger.info("ℹ️ No similar tickets research in context")
+            
+            # Step 3: Create enhanced prompt with enriched context
+            context_summary = ""
+            if gitbook_context or similar_tickets_context:
+                context_summary = "\n\n**📋 Research Context Available:**"
+                if gitbook_context:
+                    context_summary += "\n✅ Documentation research completed"
+                if similar_tickets_context:  
+                    context_summary += "\n✅ Similar tickets analysis completed"
+                context_summary += "\n*Use this context to enrich your ticket with company-specific information and proven patterns.*"
+            
             enhanced_prompt = f"""
 You are an expert Product Manager with access to company documentation and historical JIRA tickets. 
 
-Analyze this user request and create a professional JIRA ticket using the provided context:
-
 **User Request:** "{user_request}"
+{context_summary}
 {gitbook_context}
 {similar_tickets_context}
+
+**TASK:** Create a professional JIRA ticket that leverages the research context above. Reference specific documentation or similar ticket patterns where relevant to show you've incorporated the research.
 
 Following Atlassian best practices and the company patterns from documentation/similar tickets, create a professional ticket with these components:
 
@@ -1480,6 +1496,16 @@ class EnhancedMultiAgentOrchestrator:
         self.jira_integration = RealJiraIntegration()
         self.gitbook_integration = RealGitBookIntegration()
         
+        # Log integration status for debugging
+        logger.info(f"🔧 Integration Status:")
+        logger.info(f"   JIRA configured: {self.jira_integration.is_configured()}")
+        logger.info(f"   GitBook configured: {self.gitbook_integration.is_configured()}")
+        
+        if not self.gitbook_integration.is_configured():
+            logger.warning("⚠️ GitBook API not configured - set GITBOOK_API_KEY environment variable")
+        if not self.jira_integration.is_configured():
+            logger.warning("⚠️ JIRA API not configured - check JIRA_API_URL environment variable")
+        
         # Initialize Vertex AI-powered agents (Phase 0 enhancement)
         # Use organization credentials (gcloud auth login) - no API key needed
         
@@ -1646,23 +1672,44 @@ class EnhancedMultiAgentOrchestrator:
             tracker.update("PM Agent", 20, "Analyzing similar tickets and patterns...")
             time.sleep(0.5)
             
-            # Phase 1a: Context Research (if GitBook configured)
-            context_research = None
+            # Phase 1a: Context Research (GitBook + JIRA Analysis)
+            enhanced_context = context or {}
+            
+            # GitBook research
             if self.gitbook_integration.is_configured():
-                tracker.update("PM Agent", 15, "Researching context from GitBook...")
-                context_research = self.gitbook_integration.search_content(user_request)
-                if context_research.get("success"):
-                    logger.info(f"Found {len(context_research.get('results', []))} relevant GitBook entries")
-                    context = context or {}
-                    context["gitbook_research"] = context_research
-                tracker.update("PM Agent", 20, "Context research completed")
-            
-            tracker.update("PM Agent", 25, "Creating initial ticket draft...")
-            
-            if self.mock_mode:
-                result = self.pm_agent.process_request(user_request, context)
+                tracker.update("PM Agent", 15, "Researching context from GitBook documentation...")
+                gitbook_research = self.gitbook_integration.search_content(user_request)
+                if gitbook_research.get("success"):
+                    logger.info(f"✅ Found {len(gitbook_research.get('results', []))} relevant GitBook entries")
+                    enhanced_context["gitbook_research"] = gitbook_research
+                else:
+                    logger.warning("⚠️ GitBook research failed or returned no results")
+                tracker.update("PM Agent", 18, "GitBook research completed")
             else:
-                result = self.pm_agent.analyze_request(user_request, context)
+                logger.info("ℹ️ GitBook integration not configured, skipping documentation research")
+            
+            # JIRA similar tickets research  
+            if self.jira_integration.is_configured():
+                tracker.update("PM Agent", 20, "Analyzing similar JIRA tickets for patterns...")
+                similar_tickets = self.jira_integration.search_similar_tickets(user_request, max_results=5)
+                if similar_tickets.get("success"):
+                    logger.info(f"✅ Found {len(similar_tickets.get('similar_tickets', []))} similar JIRA tickets")
+                    enhanced_context["similar_tickets"] = similar_tickets
+                else:
+                    logger.warning("⚠️ JIRA similar tickets search failed or returned no results")
+                tracker.update("PM Agent", 23, "JIRA analysis completed")
+            else:
+                logger.info("ℹ️ JIRA integration not configured, skipping similar tickets analysis")
+            
+            tracker.update("PM Agent", 25, "Creating AI-powered ticket draft with enriched context...")
+            
+            # Always use analyze_request for enhanced AI processing with context
+            if self.mock_mode:
+                logger.info("🔄 Using mock mode for PM Agent")
+                result = self.pm_agent.process_request(user_request, enhanced_context)
+            else:
+                logger.info("🧠 Using real AI with enhanced context research")
+                result = self.pm_agent.analyze_request(user_request, enhanced_context)
             
             execution_time = time.time() - start_time
             
