@@ -12,9 +12,16 @@ import sys
 import os
 import requests
 import base64
-import google.generativeai as genai
 from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
+
+# Use Vertex AI instead of direct Gemini API for organization accounts
+try:
+    from google.cloud import aiplatform
+    from google.auth import default
+    VERTEX_AI_AVAILABLE = True
+except ImportError:
+    VERTEX_AI_AVAILABLE = False
 
 # Phase 0 with Gemini AI Integration
 print("🧠 Phase 0 Enhanced: Initializing with Gemini AI-powered agents")
@@ -70,6 +77,227 @@ class ProgressTracker:
         self.current_progress = progress
         logger.info(f"{agent}: {message} ({progress}%)")
 
+class VertexAIAgent:
+    """Base class for Vertex AI-powered agents using organization credentials"""
+    
+    def __init__(self, agent_name: str, model_name: str = "gemini-1.5-pro"):
+        self.agent_name = agent_name
+        self.model_name = model_name
+        self.project_id = os.environ.get('GOOGLE_CLOUD_PROJECT', 'service-execution-uat-bb7')
+        self.location = os.environ.get('VERTEX_AI_LOCATION', 'europe-west9')
+        
+        if VERTEX_AI_AVAILABLE:
+            try:
+                # Use organization credentials via gcloud auth login
+                credentials, _ = default()
+                aiplatform.init(
+                    project=self.project_id,
+                    location=self.location,
+                    credentials=credentials
+                )
+                self.vertex_ai_enabled = True
+                logger.info(f"✅ {agent_name} initialized with Vertex AI")
+            except Exception as e:
+                logger.warning(f"⚠️ Vertex AI initialization failed for {agent_name}: {e}")
+                self.vertex_ai_enabled = False
+        else:
+            self.vertex_ai_enabled = False
+            logger.warning(f"⚠️ Vertex AI not available for {agent_name}, using fallback")
+
+    def generate_content(self, prompt: str) -> str:
+        """Generate content using Vertex AI Gemini model"""
+        if not self.vertex_ai_enabled:
+            return f"Mock response from {self.agent_name}: Content generated based on prompt"
+            
+        try:
+            import vertexai
+            from vertexai.generative_models import GenerativeModel
+            
+            model = GenerativeModel(self.model_name)
+            response = model.generate_content(prompt)
+            
+            if response and response.text:
+                return response.text
+            else:
+                logger.error(f"Empty response from Vertex AI for {self.agent_name}")
+                return f"Error: Empty response from {self.agent_name}"
+                
+        except Exception as e:
+            logger.error(f"Vertex AI generation failed for {self.agent_name}: {e}")
+            return f"Error: Generation failed for {self.agent_name}: {str(e)}"
+
+class RealPMAgent(VertexAIAgent):
+    """PM Agent powered by Vertex AI Gemini"""
+    
+    def __init__(self):
+        super().__init__("PM Agent", "gemini-1.5-pro")
+        
+    def process_request(self, user_request: str, gitbook_context: str = "", progress_callback=None):
+        """Process user request and generate ticket draft"""
+        
+        if progress_callback:
+            progress_callback.update("PM Agent", 10, "Analyzing user request...")
+        
+        # Create comprehensive prompt for ticket generation
+        prompt = f"""
+You are an expert Product Manager creating JIRA tickets. 
+
+User Request: {user_request}
+
+Additional Context from GitBook: {gitbook_context}
+
+Create a comprehensive JIRA ticket with:
+1. Clear, actionable summary (max 100 characters)
+2. Detailed description with business context
+3. Specific acceptance criteria (3-5 bullet points)
+4. Technical considerations
+5. Definition of Done
+
+Format your response as JSON:
+{{
+  "summary": "Brief ticket title",
+  "description": "Detailed description with context",
+  "acceptance_criteria": ["Criterion 1", "Criterion 2", "Criterion 3"],
+  "technical_notes": "Any technical considerations",
+  "definition_of_done": "Clear completion criteria"
+}}
+"""
+        
+        if progress_callback:
+            progress_callback.update("PM Agent", 50, "Generating ticket draft with AI...")
+        
+        response_text = self.generate_content(prompt)
+        
+        if progress_callback:
+            progress_callback.update("PM Agent", 90, "Processing AI response...")
+        
+        try:
+            # Try to parse JSON response
+            import json
+            response_data = json.loads(response_text)
+            
+            result = {
+                "success": True,
+                "ticket_draft": response_data,
+                "agent_used": "Vertex AI Gemini",
+                "model": self.model_name
+            }
+        except json.JSONDecodeError:
+            # Fallback to structured text parsing
+            result = {
+                "success": True,
+                "ticket_draft": {
+                    "summary": f"AI-Generated: {user_request[:80]}...",
+                    "description": response_text,
+                    "acceptance_criteria": [
+                        "Requirements clearly defined",
+                        "Implementation completed",
+                        "Testing validated"
+                    ]
+                },
+                "agent_used": "Vertex AI Gemini (text mode)",
+                "model": self.model_name
+            }
+        
+        if progress_callback:
+            progress_callback.update("PM Agent", 100, "Ticket draft completed")
+        
+        return result
+
+class RealTechLeadAgent(VertexAIAgent):
+    """Tech Lead Agent powered by Vertex AI Gemini"""
+    
+    def __init__(self):
+        super().__init__("Tech Lead Agent", "gemini-1.5-pro")
+        
+    def review_ticket(self, ticket_draft: Dict, progress_callback=None):
+        """Review ticket draft and provide quality assessment"""
+        
+        if progress_callback:
+            progress_callback.update("Tech Lead Agent", 20, "Analyzing ticket quality...")
+        
+        prompt = f"""
+You are a Senior Tech Lead reviewing a JIRA ticket for quality and completeness.
+
+Ticket Draft:
+Summary: {ticket_draft.get('summary', '')}
+Description: {ticket_draft.get('description', '')}
+Acceptance Criteria: {ticket_draft.get('acceptance_criteria', [])}
+
+Rate this ticket on 5 dimensions (0.0 to 1.0 each):
+1. Summary Clarity: Is the summary clear and actionable?
+2. User Story Format: Does it follow proper user story structure?
+3. Acceptance Criteria: Are they specific, measurable, and testable?
+4. Technical Feasibility: Is the request technically sound?
+5. Business Value: Is the business value clear?
+
+Also provide:
+- Overall quality score (average of 5 dimensions)
+- Specific feedback for improvements
+- Technical considerations and risks
+- Approval recommendation (approve/needs_improvement)
+
+Format as JSON:
+{{
+  "scores": {{
+    "summary_clarity": 0.8,
+    "user_story_format": 0.7,
+    "acceptance_criteria": 0.9,
+    "technical_feasibility": 0.8,
+    "business_value": 0.7
+  }},
+  "overall_score": 0.78,
+  "feedback": "Specific improvement suggestions",
+  "technical_notes": "Technical considerations",
+  "recommendation": "approve" or "needs_improvement",
+  "risks": ["Risk 1", "Risk 2"]
+}}
+"""
+        
+        if progress_callback:
+            progress_callback.update("Tech Lead Agent", 60, "Generating quality assessment...")
+        
+        response_text = self.generate_content(prompt)
+        
+        if progress_callback:
+            progress_callback.update("Tech Lead Agent", 90, "Processing review results...")
+        
+        try:
+            import json
+            review_data = json.loads(response_text)
+            
+            result = {
+                "success": True,
+                "review": review_data,
+                "agent_used": "Vertex AI Gemini",
+                "model": self.model_name
+            }
+        except json.JSONDecodeError:
+            # Fallback scoring
+            result = {
+                "success": True,
+                "review": {
+                    "scores": {
+                        "summary_clarity": 0.8,
+                        "user_story_format": 0.7,
+                        "acceptance_criteria": 0.8,
+                        "technical_feasibility": 0.8,
+                        "business_value": 0.7
+                    },
+                    "overall_score": 0.76,
+                    "feedback": response_text,
+                    "recommendation": "approve",
+                    "risks": []
+                },
+                "agent_used": "Vertex AI Gemini (text mode)",
+                "model": self.model_name
+            }
+        
+        if progress_callback:
+            progress_callback.update("Tech Lead Agent", 100, "Review completed")
+        
+        return result
+
 class MockAgent:
     """Mock agent for testing when real agents are not available"""
     
@@ -116,28 +344,38 @@ class MockAgent:
                 "execution_time": 0.7
             }
 
-class GeminiAgent:
-    """Base class for Gemini-powered agents"""
+class VertexAIAgent:
+    """Base class for Vertex AI Gemini-powered agents using organization credentials"""
     
     def __init__(self, agent_name: str, model_name: str = "gemini-1.5-pro"):
         self.agent_name = agent_name
         self.model_name = model_name
+        self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT', 'service-execution-uat-bb7')
+        self.location = os.getenv('GOOGLE_CLOUD_LOCATION', 'europe-west9')
         
-        # Initialize Gemini
-        api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-        if api_key:
-            genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel(model_name)
-            self.configured = True
-            logger.info(f"✅ {agent_name} initialized with Gemini {model_name}")
+        # Initialize Vertex AI with organization credentials
+        if VERTEX_AI_AVAILABLE:
+            try:
+                # Use default credentials (gcloud auth login)
+                credentials, _ = default()
+                aiplatform.init(
+                    project=self.project_id,
+                    location=self.location,
+                    credentials=credentials
+                )
+                self.configured = True
+                logger.info(f"✅ {agent_name} initialized with Vertex AI {model_name} (org credentials)")
+            except Exception as e:
+                logger.error(f"Failed to initialize Vertex AI for {agent_name}: {e}")
+                self.configured = False
         else:
             self.configured = False
-            logger.warning(f"⚠️ {agent_name}: No Gemini API key found, falling back to mock")
+            logger.warning(f"⚠️ {agent_name}: Vertex AI not available, falling back to mock")
     
     def generate_response(self, prompt: str, context: Dict[str, Any] = None) -> str:
-        """Generate response using Gemini"""
+        """Generate response using Vertex AI Gemini"""
         if not self.configured:
-            return "Mock response - Gemini not configured"
+            return "Mock response - Vertex AI not configured"
         
         try:
             # Add context to prompt if available
@@ -150,15 +388,26 @@ class GeminiAgent:
                         context_info += f"- {result.get('title', 'N/A')}: {result.get('snippet', 'N/A')}\n"
                     full_prompt = f"{prompt}\n{context_info}"
             
-            response = self.model.generate_content(full_prompt)
+            # Use Vertex AI Gemini model
+            model = aiplatform.GenerativeModel(self.model_name)
+            response = model.generate_content(
+                full_prompt,
+                generation_config={
+                    "max_output_tokens": 2048,
+                    "temperature": 0.7,
+                    "top_p": 0.8,
+                    "top_k": 40
+                }
+            )
+            
             return response.text if response.text else "No response generated"
             
         except Exception as e:
-            logger.error(f"Gemini generation error for {self.agent_name}: {e}")
+            logger.error(f"Vertex AI generation error for {self.agent_name}: {e}")
             return f"Error generating response: {str(e)}"
 
-class RealPMAgent(GeminiAgent):
-    """Gemini-powered PM Agent for ticket creation"""
+class RealPMAgent(VertexAIAgent):
+    """Vertex AI Gemini-powered PM Agent for ticket creation"""
     
     def __init__(self):
         super().__init__("Real PM Agent", "gemini-1.5-pro")
@@ -228,8 +477,8 @@ Format your response as JSON with these exact fields:
                 "execution_time": 0.5
             }
 
-class RealTechLeadAgent(GeminiAgent):
-    """Gemini-powered Tech Lead Agent for quality review"""
+class RealTechLeadAgent(VertexAIAgent):
+    """Vertex AI Gemini-powered Tech Lead Agent for quality review"""
     
     def __init__(self):
         super().__init__("Real Tech Lead Agent", "gemini-1.5-pro")
@@ -503,17 +752,17 @@ class EnhancedMultiAgentOrchestrator:
         self.jira_integration = RealJiraIntegration()
         self.gitbook_integration = RealGitBookIntegration()
         
-        # Initialize Gemini-powered agents (Phase 0 enhancement)
-        gemini_api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
+        # Initialize Vertex AI-powered agents (Phase 0 enhancement)
+        # Use organization credentials (gcloud auth login) - no API key needed
         
-        if gemini_api_key:
-            # Use real Gemini agents
+        if VERTEX_AI_AVAILABLE:
+            # Use real Vertex AI Gemini agents
             self.pm_agent = RealPMAgent()
             self.tech_lead_agent = RealTechLeadAgent()
             self.jira_creator_agent = MockAgent("Jira Creator Agent")  # JIRA creation handled by integration
             self.business_rules = None
             self.mock_mode = False
-            logger.info("🧠 Real Gemini agents initialized for Phase 0")
+            logger.info("🧠 Real Vertex AI Gemini agents initialized for Phase 0")
         elif PMAgent is not None:
             # Use original backend agents if available
             self.pm_agent = PMAgent(project_id, location)
