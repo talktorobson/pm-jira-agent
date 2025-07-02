@@ -180,7 +180,7 @@ deploy_google_cloud_run() {
     
     # Create Artifact Registry repository
     echo -e "${CYAN}Setting up Artifact Registry...${NC}"
-    REGION="us-central1"
+    REGION="europe-west9"
     REPO_NAME="pm-jira-agent"
     
     # Create repository if it doesn't exist
@@ -198,7 +198,7 @@ deploy_google_cloud_run() {
     SERVICE_NAME="pm-jira-agent"
     IMAGE_URL="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$SERVICE_NAME"
     
-    gcloud builds submit --tag "$IMAGE_URL"
+    gcloud builds submit --tag "$IMAGE_URL" --region="$REGION"
     
     gcloud run deploy "$SERVICE_NAME" \
         --image "$IMAGE_URL" \
