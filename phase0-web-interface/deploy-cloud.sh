@@ -51,40 +51,7 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-print_section "Cloud Deployment Options"
-
-echo "Choose your deployment platform:"
-echo "1) Heroku (Free tier available)"
-echo "2) Railway (Simple deployment)" 
-echo "3) Google Cloud Run (Serverless)"
-echo "4) DigitalOcean App Platform"
-echo "5) Manual Docker deployment"
-echo ""
-
-read -p "Enter your choice (1-5): " choice
-
-case $choice in
-    1)
-        deploy_heroku
-        ;;
-    2)  
-        deploy_railway
-        ;;
-    3)
-        deploy_google_cloud_run
-        ;;
-    4)
-        deploy_digitalocean
-        ;;
-    5)
-        manual_docker_deployment
-        ;;
-    *)
-        print_error "Invalid choice. Please run the script again."
-        exit 1
-        ;;
-esac
-
+# Deployment function definitions
 deploy_heroku() {
     print_section "Deploying to Heroku"
     
@@ -340,6 +307,41 @@ EOF
     
     print_success "Created nginx.conf.template for reverse proxy setup"
 }
+
+# Main deployment menu
+print_section "Cloud Deployment Options"
+
+echo "Choose your deployment platform:"
+echo "1) Heroku (Free tier available)"
+echo "2) Railway (Simple deployment)" 
+echo "3) Google Cloud Run (Serverless)"
+echo "4) DigitalOcean App Platform"
+echo "5) Manual Docker deployment"
+echo ""
+
+read -p "Enter your choice (1-5): " choice
+
+case $choice in
+    1)
+        deploy_heroku
+        ;;
+    2)  
+        deploy_railway
+        ;;
+    3)
+        deploy_google_cloud_run
+        ;;
+    4)
+        deploy_digitalocean
+        ;;
+    5)
+        manual_docker_deployment
+        ;;
+    *)
+        print_error "Invalid choice. Please run the script again."
+        exit 1
+        ;;
+esac
 
 # Final instructions
 print_section "Post-Deployment Checklist"
