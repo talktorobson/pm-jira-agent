@@ -213,7 +213,7 @@ deploy_google_cloud_run() {
         --min-instances 0 \
         --concurrency 80 \
         --cpu-throttling \
-        --set-env-vars="FLASK_ENV=production,PORT=5000" \
+        --set-env-vars="FLASK_ENV=production" \
         --execution-environment gen2
     
     # Set environment variables
