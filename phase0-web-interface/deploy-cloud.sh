@@ -176,17 +176,32 @@ deploy_google_cloud_run() {
     echo -e "${CYAN}Enabling required APIs...${NC}"
     gcloud services enable cloudbuild.googleapis.com
     gcloud services enable run.googleapis.com
+    gcloud services enable artifactregistry.googleapis.com
+    
+    # Create Artifact Registry repository
+    echo -e "${CYAN}Setting up Artifact Registry...${NC}"
+    REGION="us-central1"
+    REPO_NAME="pm-jira-agent"
+    
+    # Create repository if it doesn't exist
+    gcloud artifacts repositories create "$REPO_NAME" \
+        --repository-format=docker \
+        --location="$REGION" \
+        --description="PM Jira Agent container images" 2>/dev/null || echo "Repository already exists"
+    
+    # Configure Docker authentication
+    gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
     
     # Build and deploy
     echo -e "${CYAN}Building and deploying to Cloud Run...${NC}"
     
     SERVICE_NAME="pm-jira-agent"
-    REGION="us-central1"
+    IMAGE_URL="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$SERVICE_NAME"
     
-    gcloud builds submit --tag "gcr.io/$PROJECT_ID/$SERVICE_NAME"
+    gcloud builds submit --tag "$IMAGE_URL"
     
     gcloud run deploy "$SERVICE_NAME" \
-        --image "gcr.io/$PROJECT_ID/$SERVICE_NAME" \
+        --image "$IMAGE_URL" \
         --platform managed \
         --region "$REGION" \
         --allow-unauthenticated \
