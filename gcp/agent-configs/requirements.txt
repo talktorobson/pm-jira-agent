@@ -1,0 +1,44 @@
+# PM Jira Agent Multi-Agent System Requirements
+# Phase 3 - Production Deployment with FastAPI and Vertex AI
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# Google Cloud Platform
+google-cloud-aiplatform==1.101.0
+google-cloud-secret-manager==2.24.0
+google-cloud-functions==1.14.0
+google-cloud-logging==3.8.0
+google-cloud-monitoring==2.16.0
+
+# Vertex AI and AI Platform
+vertexai>=1.0.0
+
+# HTTP requests and API integration
+requests==2.32.4
+httpx==0.25.2
+
+# Data handling and serialization
+numpy>=1.21.0
+pandas>=1.3.0
+
+# Utilities
+python-dotenv==1.0.0
+python-multipart==0.0.6
+
+# Security and Authentication
+google-auth==2.25.2
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.1.1
+
+# Development and testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+black>=22.0.0
+flake8>=4.0.0
+
+# Optional: Enhanced NLP capabilities
+# transformers>=4.20.0
+# torch>=1.12.0
