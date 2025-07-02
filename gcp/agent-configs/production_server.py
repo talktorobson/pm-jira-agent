@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from orchestrator import MultiAgentOrchestrator
+from vertex_orchestrator import VertexAIOrchestrator
 
 # Configure logging
 logging.basicConfig(
@@ -45,13 +46,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize orchestrator
+# Initialize orchestrator (supports both local and Vertex AI modes)
 PROJECT_ID = os.getenv("PROJECT_ID", "service-execution-uat-bb7")
 LOCATION = os.getenv("LOCATION", "europe-west9")
+USE_VERTEX_AI = os.getenv("USE_VERTEX_AI", "false").lower() == "true"
 
 try:
-    orchestrator = MultiAgentOrchestrator(PROJECT_ID, LOCATION)
-    logger.info("Multi-Agent Orchestrator initialized successfully")
+    if USE_VERTEX_AI:
+        orchestrator = VertexAIOrchestrator(PROJECT_ID, LOCATION)
+        # Try to auto-discover deployed agents
+        discovered_agents = orchestrator.discover_agents()
+        logger.info(f"Vertex AI Orchestrator initialized with {len(discovered_agents)} agents")
+    else:
+        orchestrator = MultiAgentOrchestrator(PROJECT_ID, LOCATION)
+        logger.info("Local Multi-Agent Orchestrator initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize orchestrator: {str(e)}")
     orchestrator = None
@@ -117,12 +125,13 @@ async def health_check():
     
     uptime = time.time() - app_start_time
     orchestrator_status = "healthy" if orchestrator else "unhealthy"
+    orchestrator_type = "Vertex AI" if USE_VERTEX_AI else "Local"
     
     return HealthResponse(
         status="healthy" if orchestrator else "degraded",
         timestamp=datetime.now().isoformat(),
-        version="1.0.0",
-        orchestrator_status=orchestrator_status,
+        version=f"1.0.0 ({orchestrator_type})",
+        orchestrator_status=f"{orchestrator_status} ({orchestrator_type})",
         uptime_seconds=round(uptime, 2)
     )
 
@@ -235,17 +244,21 @@ async def get_workflow_status(workflow_id: str):
 @app.get("/")
 async def root():
     """Root endpoint with API information"""
+    orchestrator_type = "Vertex AI Agent Engine" if USE_VERTEX_AI else "Local Multi-Agent System"
+    
     return {
         "service": "PM Jira Agent Multi-Agent System",
-        "version": "1.0.0",
+        "version": f"1.0.0 ({orchestrator_type})",
         "status": "healthy" if orchestrator else "degraded",
+        "orchestrator_type": orchestrator_type,
         "endpoints": {
             "create_ticket": "/create-ticket",
             "health": "/health",
             "metrics": "/metrics",
             "docs": "/docs"
         },
-        "description": "AI-powered Jira ticket creation using multi-agent workflows"
+        "description": f"AI-powered Jira ticket creation using {orchestrator_type.lower()}",
+        "deployment_mode": "Vertex AI" if USE_VERTEX_AI else "Local"
     }
 
 # Exception handlers
