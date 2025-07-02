@@ -53,36 +53,15 @@ ENV GOOGLE_CLOUD_PROJECT=service-execution-uat-bb7
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
+# Copy startup script
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh && chown appuser:appuser /app/start.sh
+
 # Expose port
 EXPOSE ${PORT}
 
 # Switch to non-root user
 USER appuser
-
-# Create startup script
-COPY --chown=appuser:appuser <<EOF /app/start.sh
-#!/bin/bash
-set -e
-
-echo "🤖 Starting PM Jira Agent Phase 0"
-echo "=================================="
-echo "Port: ${PORT}"
-echo "Environment: ${FLASK_ENV}"
-echo "Project: ${GOOGLE_CLOUD_PROJECT}"
-echo ""
-
-# Create default config if none exists
-if [ ! -f /app/config/config.yaml ]; then
-    echo "📄 Creating default configuration..."
-    cp /app/config/config.yaml.template /app/config/config.yaml
-fi
-
-# Start the application
-echo "🚀 Starting Flask application..."
-exec python app.py
-EOF
-
-RUN chmod +x /app/start.sh
 
 # Run the application
 CMD ["/app/start.sh"]
