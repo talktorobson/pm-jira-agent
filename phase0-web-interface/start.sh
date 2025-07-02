@@ -64,7 +64,7 @@ echo "📁 Config file exists: $([ -f /app/config/config.yaml ] && echo 'YES' ||
 # Use gunicorn for production (more stable than Flask dev server)
 if [ "$FLASK_ENV" = "production" ]; then
     echo "🌐 Starting with Gunicorn (production mode)..."
-    exec gunicorn --bind 0.0.0.0:$PORT --worker-class eventlet -w 1 --timeout 120 --preload app:app
+    exec gunicorn --bind 0.0.0.0:$PORT --worker-class eventlet -w 1 --timeout 120 --preload --access-logfile - --error-logfile - app:app
 else
     echo "🔧 Starting with Flask dev server..."
     exec python app.py

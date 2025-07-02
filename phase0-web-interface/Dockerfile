@@ -1,43 +1,29 @@
 # Phase 0 PM Jira Agent - Web Interface
-# Multi-stage build for optimized container size
+# Single-stage build for simplicity and reliability
 
-# Build stage
-FROM python:3.11-slim as builder
-
-WORKDIR /app
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Production stage
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd -r appuser && useradd -r -g appuser appuser
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
+# Copy requirements and install Python dependencies globally
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Make sure scripts in .local are usable:
-ENV PATH=/root/.local/bin:$PATH
+# Create user after installing packages (so packages are available globally)
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Copy application code
 COPY . .
 
 # Create necessary directories with proper permissions
-RUN mkdir -p /app/config /app/logs \
+RUN mkdir -p /app/config /app/logs /app/static \
     && chown -R appuser:appuser /app
 
 # Copy default configuration if it doesn't exist
