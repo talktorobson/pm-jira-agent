@@ -113,6 +113,14 @@ class VertexAIAgent:
             import vertexai
             from vertexai.generative_models import GenerativeModel
             
+            # Initialize Vertex AI for this request
+            credentials, _ = default()
+            vertexai.init(
+                project=self.project_id,
+                location=self.location,
+                credentials=credentials
+            )
+            
             model = GenerativeModel(self.model_name)
             response = model.generate_content(prompt)
             
@@ -789,6 +797,8 @@ class RealJiraIntegration:
                         return {
                             "success": True,
                             "ticket_created": True,
+                            "ticket_key": ticket_key,
+                            "ticket_url": ticket_url,
                             "key": ticket_key,
                             "url": ticket_url,
                             "id": ticket_id,
