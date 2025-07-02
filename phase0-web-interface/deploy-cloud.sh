@@ -219,10 +219,13 @@ deploy_google_cloud_run() {
     # Set environment variables
     echo -e "${CYAN}Setting up environment variables...${NC}"
     
-    # Set backend API URLs (your existing GCP functions)
+    # Set backend API URLs and Gemini configuration (your existing GCP functions)
     gcloud run services update "$SERVICE_NAME" \
         --region "$REGION" \
         --set-env-vars="GITBOOK_API_URL=https://gitbook-api-jlhinciqia-od.a.run.app,JIRA_API_URL=https://jira-api-jlhinciqia-od.a.run.app,GITBOOK_SPACE_ID=Jw57BieQciFYoCHgwVlm"
+    
+    echo -e "${YELLOW}⚠️  Don't forget to set your Gemini API key:${NC}"
+    echo "gcloud run services update $SERVICE_NAME --region $REGION --set-env-vars=\"GEMINI_API_KEY=your-key-here\""
     
     if [ -f .env ]; then
         ENV_VARS=""
