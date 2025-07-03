@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Prompts - PM Jira Agent</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { 
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .nav-links {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .nav-link.active {
+            background: rgba(255,255,255,0.4);
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e1e5e9;
+            margin-bottom: 30px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #6c757d;
+            border-radius: 8px 8px 0 0;
+            margin-right: 2px;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .tab:hover:not(.active) {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .prompt-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .prompt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .prompt-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .prompt-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .prompt-badge.enhanced {
+            background: #28a745;
+        }
+        
+        .prompt-description {
+            color: #6c757d;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .form-group { 
+            margin-bottom: 25px; 
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        textarea { 
+            width: 100%; 
+            padding: 14px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px; 
+            font-size: 14px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            min-height: 200px;
+            resize: vertical;
+            line-height: 1.5;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            border: none;
+            padding: 12px 24px; 
+            border-radius: 8px; 
+            font-size: 14px;
+            cursor: pointer; 
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+        
+        .btn:hover:not(:disabled) { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled { 
+            background: linear-gradient(135deg, #ccc 0%, #999 100%);
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            margin-right: 10px;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+        }
+        
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: 1px solid #c3e6cb;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .prompt-info {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .prompt-info h3 {
+            color: #1565c0;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .prompt-info p {
+            color: #1976d2;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        
+        .prompt-variables {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .prompt-variables h4 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .prompt-variables ul {
+            color: #856404;
+            font-size: 13px;
+            margin-left: 20px;
+        }
+        
+        .prompt-variables li {
+            margin-bottom: 5px;
+        }
+        
+        .variable-code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab {
+                margin-right: 0;
+                margin-bottom: 2px;
+            }
+            
+            .nav-links {
+                position: static;
+                justify-content: center;
+                margin-top: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 Home</a>
+                <a href="/config" class="nav-link">⚙️ Config</a>
+                <a href="/prompts" class="nav-link active">🤖 Prompts</a>
+            </div>
+            <h1>🤖 Agent Prompts</h1>
+            <p>Customize AI agent prompts to fit your team's needs</p>
+        </div>
+        
+        <div class="content">
+            <div class="success-message" id="successMessage"></div>
+            <div class="error-message" id="errorMessage"></div>
+            
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('pm-basic')">PM Agent (Basic)</button>
+                <button class="tab" onclick="switchTab('pm-enhanced')">PM Agent (Enhanced)</button>
+                <button class="tab" onclick="switchTab('tech-basic')">Tech Lead (Basic)</button>
+                <button class="tab" onclick="switchTab('tech-enhanced')">Tech Lead (Enhanced)</button>
+            </div>
+            
+            <!-- PM Agent Basic Tab -->
+            <div id="pm-basic" class="tab-content active">
+                <div class="prompt-section">
+                    <div class="prompt-header">
+                        <div class="prompt-title">
+                            Product Manager Agent
+                            <span class="prompt-badge">Basic</span>
+                        </div>
+                    </div>
+                    <div class="prompt-description">
+                        Basic PM agent that creates simple JIRA tickets with essential components. Best for straightforward requirements.
+                    </div>
+                    
+                    <div class="prompt-info">
+                        <h3>🎯 What This Agent Does</h3>
+                        <p>Creates comprehensive JIRA tickets with clear summaries, detailed descriptions, acceptance criteria, and technical considerations.</p>
+                        <p><strong>Best for:</strong> Simple feature requests, bug reports, and straightforward user stories.</p>
+                    </div>
+                    
+                    <div class="prompt-variables">
+                        <h4>📝 Available Variables</h4>
+                        <ul>
+                            <li><span class="variable-code">{user_request}</span> - The user's input request</li>
+                            <li><span class="variable-code">{gitbook_context}</span> - Context from GitBook documentation</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pm-basic-prompt">Agent Prompt</label>
+                        <textarea id="pm-basic-prompt" placeholder="Enter your custom prompt here...">{{ current_config.agent_prompts.pm_agent_basic }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PM Agent Enhanced Tab -->
+            <div id="pm-enhanced" class="tab-content">
+                <div class="prompt-section">
+                    <div class="prompt-header">
+                        <div class="prompt-title">
+                            Product Manager Agent
+                            <span class="prompt-badge enhanced">Enhanced</span>
+                        </div>
+                    </div>
+                    <div class="prompt-description">
+                        Advanced PM agent with GitBook integration, historical ticket analysis, and comprehensive business context.
+                    </div>
+                    
+                    <div class="prompt-info">
+                        <h3>🚀 What This Agent Does</h3>
+                        <p>Creates professional JIRA tickets with extensive research, business value analysis, and technical considerations based on company documentation.</p>
+                        <p><strong>Best for:</strong> Complex features, strategic initiatives, and tickets requiring deep context analysis.</p>
+                    </div>
+                    
+                    <div class="prompt-variables">
+                        <h4>📝 Available Variables</h4>
+                        <ul>
+                            <li><span class="variable-code">{user_request}</span> - The user's input request</li>
+                            <li><span class="variable-code">{context_summary}</span> - Summary of research context</li>
+                            <li><span class="variable-code">{gitbook_context}</span> - GitBook documentation context</li>
+                            <li><span class="variable-code">{similar_tickets_context}</span> - Similar historical tickets</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pm-enhanced-prompt">Agent Prompt</label>
+                        <textarea id="pm-enhanced-prompt" placeholder="Enter your custom prompt here...">{{ current_config.agent_prompts.pm_agent_enhanced }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tech Lead Basic Tab -->
+            <div id="tech-basic" class="tab-content">
+                <div class="prompt-section">
+                    <div class="prompt-header">
+                        <div class="prompt-title">
+                            Tech Lead Agent
+                            <span class="prompt-badge">Basic</span>
+                        </div>
+                    </div>
+                    <div class="prompt-description">
+                        Basic tech lead agent that reviews tickets for quality and technical feasibility with 5-dimension scoring.
+                    </div>
+                    
+                    <div class="prompt-info">
+                        <h3>🔍 What This Agent Does</h3>
+                        <p>Reviews JIRA tickets for quality, completeness, and technical feasibility. Provides scoring and improvement feedback.</p>
+                        <p><strong>Best for:</strong> Standard quality reviews and basic technical validation.</p>
+                    </div>
+                    
+                    <div class="prompt-variables">
+                        <h4>📝 Available Variables</h4>
+                        <ul>
+                            <li><span class="variable-code">{ticket_draft.get('summary', '')}</span> - Draft ticket summary</li>
+                            <li><span class="variable-code">{ticket_draft.get('description', '')}</span> - Draft ticket description</li>
+                            <li><span class="variable-code">{ticket_draft.get('acceptance_criteria', [])}</span> - Draft acceptance criteria</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tech-basic-prompt">Agent Prompt</label>
+                        <textarea id="tech-basic-prompt" placeholder="Enter your custom prompt here...">{{ current_config.agent_prompts.tech_lead_basic }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tech Lead Enhanced Tab -->
+            <div id="tech-enhanced" class="tab-content">
+                <div class="prompt-section">
+                    <div class="prompt-header">
+                        <div class="prompt-title">
+                            Tech Lead Agent
+                            <span class="prompt-badge enhanced">Enhanced</span>
+                        </div>
+                    </div>
+                    <div class="prompt-description">
+                        Advanced tech lead agent with architectural alignment, complexity assessment, and comprehensive technical review.
+                    </div>
+                    
+                    <div class="prompt-info">
+                        <h3>🏗️ What This Agent Does</h3>
+                        <p>Provides comprehensive technical review with architectural alignment, complexity assessment, and detailed technical recommendations.</p>
+                        <p><strong>Best for:</strong> Complex technical reviews, architectural decisions, and detailed technical analysis.</p>
+                    </div>
+                    
+                    <div class="prompt-variables">
+                        <h4>📝 Available Variables</h4>
+                        <ul>
+                            <li><span class="variable-code">{ticket_draft.get('summary', 'N/A')}</span> - Draft ticket summary</li>
+                            <li><span class="variable-code">{ticket_draft.get('description', 'N/A')}</span> - Draft ticket description</li>
+                            <li><span class="variable-code">{ticket_draft.get('acceptance_criteria', [])}</span> - Draft acceptance criteria</li>
+                            <li><span class="variable-code">{ticket_draft.get('business_value', 'N/A')}</span> - Draft business value</li>
+                            <li><span class="variable-code">{ticket_draft.get('technical_considerations', 'N/A')}</span> - Technical considerations</li>
+                            <li><span class="variable-code">{ticket_draft.get('estimated_complexity', 'N/A')}</span> - Estimated complexity</li>
+                            <li><span class="variable-code">{technical_context}</span> - Technical documentation context</li>
+                            <li><span class="variable-code">{complexity_context}</span> - Complexity assessment context</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tech-enhanced-prompt">Agent Prompt</label>
+                        <textarea id="tech-enhanced-prompt" placeholder="Enter your custom prompt here...">{{ current_config.agent_prompts.tech_lead_enhanced }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="resetPrompts()">Reset to Default</button>
+                <button class="btn" onclick="savePrompts()">Save Prompts</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Remove active class from all tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+        
+        function showMessage(message, type = 'success') {
+            const successEl = document.getElementById('successMessage');
+            const errorEl = document.getElementById('errorMessage');
+            
+            // Hide both messages first
+            successEl.style.display = 'none';
+            errorEl.style.display = 'none';
+            
+            if (type === 'success') {
+                successEl.textContent = message;
+                successEl.style.display = 'block';
+            } else {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+            }
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                successEl.style.display = 'none';
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        function savePrompts() {
+            const prompts = {
+                pm_agent_basic: document.getElementById('pm-basic-prompt').value,
+                pm_agent_enhanced: document.getElementById('pm-enhanced-prompt').value,
+                tech_lead_basic: document.getElementById('tech-basic-prompt').value,
+                tech_lead_enhanced: document.getElementById('tech-enhanced-prompt').value
+            };
+            
+            fetch('/api/save-prompts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ agent_prompts: prompts })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Prompts saved successfully!', 'success');
+                } else {
+                    showMessage(data.error || 'Failed to save prompts', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error saving prompts: ' + error.message, 'error');
+            });
+        }
+        
+        function resetPrompts() {
+            if (confirm('Are you sure you want to reset all prompts to default values? This will overwrite your current customizations.')) {
+                fetch('/api/reset-prompts', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('Prompts reset to default values!', 'success');
+                        // Reload the page to show default prompts
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        showMessage(data.error || 'Failed to reset prompts', 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error resetting prompts: ' + error.message, 'error');
+                });
+            }
+        }
+    </script>
+</body>
+</html>

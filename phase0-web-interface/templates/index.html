@@ -48,10 +48,15 @@
             opacity: 0.9;
         }
         
-        .config-link {
+        .nav-links {
             position: absolute;
             top: 20px;
             right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-link {
             color: white;
             text-decoration: none;
             background: rgba(255,255,255,0.2);
@@ -61,8 +66,12 @@
             transition: background 0.3s;
         }
         
-        .config-link:hover {
+        .nav-link:hover {
             background: rgba(255,255,255,0.3);
+        }
+        
+        .nav-link.active {
+            background: rgba(255,255,255,0.4);
         }
         
         .content {
@@ -338,7 +347,11 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="/config" class="config-link">⚙️ Settings</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link active">🏠 Home</a>
+                <a href="/config" class="nav-link">⚙️ Config</a>
+                <a href="/prompts" class="nav-link">🤖 Prompts</a>
+            </div>
             <h1>🤖 PM Jira Agent</h1>
             <p>Transform ideas into professional Jira tickets in under 2 minutes</p>
         </div>
@@ -371,22 +384,43 @@
                     <div class="form-group">
                         <label for="priority">Priority</label>
                         <select id="priority">
-                            <option value="Low">Low</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
+                            <option value="Low">🟢 Low</option>
+                            <option value="Medium" selected>🟡 Medium</option>
+                            <option value="High">🟠 High</option>
+                            <option value="Critical">🔴 Critical</option>
                         </select>
                     </div>
                     
                     <div class="form-group">
                         <label for="issueType">Issue Type</label>
                         <select id="issueType">
-                            <option value="Story" selected>Story</option>
-                            <option value="Task">Task</option>
-                            <option value="Bug">Bug</option>
-                            <option value="Epic">Epic</option>
+                            <option value="Story" selected>📖 Story</option>
+                            <option value="Task">✅ Task</option>
+                            <option value="Bug">🐛 Bug</option>
+                            <option value="Epic">🏗️ Epic</option>
                         </select>
                     </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="component">Component</label>
+                    <select id="component">
+                        <option value="">Select Component (Optional)</option>
+                        <option value="Frontend">🎨 Frontend</option>
+                        <option value="Backend">⚙️ Backend</option>
+                        <option value="API">🔌 API</option>
+                        <option value="Database">🗄️ Database</option>
+                        <option value="Authentication">🔐 Authentication</option>
+                        <option value="Integration">🔗 Integration</option>
+                        <option value="Security">🛡️ Security</option>
+                        <option value="Performance">⚡ Performance</option>
+                        <option value="UI/UX">✨ UI/UX</option>
+                        <option value="Mobile">📱 Mobile</option>
+                        <option value="DevOps">🚀 DevOps</option>
+                        <option value="Documentation">📚 Documentation</option>
+                        <option value="Testing">🧪 Testing</option>
+                        <option value="Infrastructure">🏭 Infrastructure</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">
@@ -506,6 +540,7 @@
                         context: {
                             priority: document.getElementById('priority').value,
                             issue_type: document.getElementById('issueType').value,
+                            component: document.getElementById('component').value,
                             stakeholder: document.getElementById('stakeholder').value
                         }
                     })

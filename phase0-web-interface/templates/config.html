@@ -37,7 +37,12 @@
             justify-content: space-between;
         }
         
-        .back-link {
+        .nav-links {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-link {
             color: white;
             text-decoration: none;
             background: rgba(255,255,255,0.2);
@@ -47,8 +52,12 @@
             transition: background 0.3s;
         }
         
-        .back-link:hover {
+        .nav-link:hover {
             background: rgba(255,255,255,0.3);
+        }
+        
+        .nav-link.active {
+            background: rgba(255,255,255,0.4);
         }
         
         .header-title {
@@ -263,7 +272,11 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="/" class="back-link">← Back to Ticket Creation</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 Home</a>
+                <a href="/config" class="nav-link active">⚙️ Config</a>
+                <a href="/prompts" class="nav-link">🤖 Prompts</a>
+            </div>
             <div class="header-title">
                 <h1>⚙️ Configuration</h1>
                 <p>Customize your PM Jira Agent settings</p>

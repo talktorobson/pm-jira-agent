@@ -996,16 +996,17 @@ class RealGitBookIntegration:
             return {"success": False, "error": "GitBook not configured"}
         
         try:
-            # For now, use get_content action instead of search since search endpoint has issues
+            # Use proper search action with improved GitBook Cloud Function
             headers = {
                 'Content-Type': 'application/json',
                 'Authorization': f'Bearer {self.gitbook_api_key}'
             }
             
             payload = {
-                "action": "get_content",
+                "action": "search",
                 "space_id": self.space_id,
-                "query": query
+                "query": query,
+                "limit": 5
             }
             
             response = requests.post(self.gitbook_api_url, headers=headers, json=payload, timeout=10)
@@ -1013,26 +1014,17 @@ class RealGitBookIntegration:
             if response.status_code == 200:
                 result = response.json()
                 if result.get("success"):
-                    # Extract content and create mock search results based on query matching
-                    content = result.get('content', '')
-                    raw_data = result.get('raw_data', {})
+                    # Extract search results from improved GitBook integration
+                    search_results = result.get('results', [])
+                    total_pages = result.get('total_pages', 0)
                     
-                    # Create mock search results based on content relevance
-                    mock_results = []
-                    if query.lower() in content.lower():
-                        mock_results = [{
-                            "title": f"[SSI] Service Sales Integration - {query.title()} Documentation",
-                            "snippet": f"Documentation contains information about {query}. " + content[:150] + "...",
-                            "url": f"https://app.gitbook.com/o/0gRlAkSocTvnN36NTnDZ/s/{self.space_id}/",
-                            "relevance": 0.8
-                        }]
-                    
-                    logger.info(f"✅ GitBook content retrieved: {len(mock_results)} relevant results found")
+                    logger.info(f"✅ GitBook search successful: {len(search_results)} results found from {total_pages} total pages")
                     return {
                         "success": True,
-                        "results": mock_results,
+                        "results": search_results,
                         "query": query,
-                        "source": "content_analysis"
+                        "total_pages": total_pages,
+                        "source": "gitbook_search"
                     }
                 else:
                     logger.warning("GitBook API returned unsuccessful result")
@@ -1183,17 +1175,28 @@ class RealJiraIntegration:
             labels = self._extract_jira_labels(parsed_data, ticket_data)
             components = self._extract_jira_components(parsed_data)
                 
+            # 🎯 Use user-selected component if provided, otherwise fall back to auto-extracted
+            user_component = ticket_data.get("component", "").strip()
+            final_components = [user_component] if user_component else components
+            
+            # 🚨 Use user-selected priority and issue type with proper fallbacks
+            final_priority = ticket_data.get("priority", parsed_data.get("priority", "Medium"))
+            final_issue_type = ticket_data.get("issue_type", parsed_data.get("issue_type", "Story"))
+            
             payload = {
                 "action": "create_ticket",
                 "ticket_data": {
                     "summary": summary[:255],  # JIRA summary limit is actually 255 chars
                     "description": description,
-                    "issue_type": ticket_data.get("issue_type", parsed_data.get("issue_type", "Story")),
-                    "priority": ticket_data.get("priority", parsed_data.get("priority", "Medium")),
+                    "issue_type": final_issue_type,
+                    "priority": final_priority,
                     "labels": labels,
-                    "components": components,
+                    "components": final_components,
                     "reporter": "pm-jira-agent",
-                    "environment": self._extract_environment_info(parsed_data)
+                    "environment": self._extract_environment_info(parsed_data),
+                    # 📊 Add additional metadata for better tracking
+                    "ai_quality_score": parsed_data.get("overall_score", "N/A"),
+                    "ai_complexity": parsed_data.get("estimated_complexity", "Medium")
                 }
             }
             
@@ -1272,10 +1275,12 @@ class RealJiraIntegration:
             return ticket_data
     
     def _create_professional_jira_summary(self, parsed_data: Dict[str, Any], context: Dict[str, Any]) -> str:
-        """Create a professional JIRA summary following Atlassian best practices"""
+        """Create action-oriented, meaningful JIRA summary with enhanced best practices"""
         try:
-            # Get the issue type from context or parsed data
+            # Get context information
             issue_type = context.get("issue_type", parsed_data.get("issue_type", "Story"))
+            component = context.get("component", "").strip()
+            priority = context.get("priority", "Medium")
             
             # Get the base summary from AI
             ai_summary = parsed_data.get("summary", "")
@@ -1284,166 +1289,457 @@ class RealJiraIntegration:
             import re
             ai_summary = re.sub(r'^[A-Z]+-\d+:\s*', '', ai_summary)  # Remove ticket prefixes
             ai_summary = re.sub(r'^\[.*?\]\s*-\s*', '', ai_summary)  # Remove brackets
+            ai_summary = re.sub(r'^\w+:\s*', '', ai_summary)  # Remove "Story:" or similar prefixes
             ai_summary = ai_summary.strip()
+            
+            # Enhanced action verb mapping based on issue type and context
+            action_verb_mapping = {
+                "bug": ["Fix", "Resolve", "Debug", "Patch", "Correct"],
+                "story": ["Implement", "Add", "Create", "Build", "Develop", "Enable"],
+                "task": ["Complete", "Setup", "Configure", "Update", "Migrate", "Deploy"],
+                "epic": ["Deliver", "Implement", "Build", "Create", "Launch"]
+            }
+            
+            # Component-specific verbs for better context
+            component_verbs = {
+                "frontend": ["Implement", "Design", "Build", "Create"],
+                "backend": ["Develop", "Implement", "Create", "Build"],
+                "api": ["Implement", "Create", "Develop", "Build"],
+                "database": ["Create", "Update", "Migrate", "Optimize"],
+                "authentication": ["Implement", "Add", "Configure", "Setup"],
+                "security": ["Implement", "Add", "Enhance", "Secure"],
+                "performance": ["Optimize", "Improve", "Enhance", "Fix"],
+                "ui/ux": ["Design", "Implement", "Create", "Enhance"],
+                "integration": ["Integrate", "Connect", "Implement", "Setup"],
+                "testing": ["Create", "Implement", "Add", "Setup"]
+            }
             
             # Apply Atlassian best practices: start with a verb, be descriptive
             if not ai_summary:
-                # Fallback based on user request
                 user_request = context.get("user_request", "implement feature")
-                ai_summary = f"Implement {user_request[:50]}..."
+                ai_summary = self._extract_meaningful_summary_from_request(user_request, issue_type)
             
-            # Ensure it starts with a verb (best practice from Atlassian)
-            action_verbs = ["implement", "fix", "create", "update", "develop", "design", "build", "enhance", "add", "remove", "configure", "setup", "integrate"]
-            first_word = ai_summary.split()[0].lower() if ai_summary.split() else ""
+            # Determine the best action verb
+            best_verb = self._select_best_action_verb(ai_summary, issue_type, component, action_verb_mapping, component_verbs)
             
-            if first_word not in action_verbs:
-                # Add appropriate verb based on issue type
-                if issue_type.lower() == "bug":
-                    ai_summary = f"Fix {ai_summary.lower()}"
-                elif issue_type.lower() == "epic":
-                    ai_summary = f"Implement {ai_summary.lower()}"
-                elif issue_type.lower() == "task":
-                    ai_summary = f"Complete {ai_summary.lower()}"
-                else:  # Story
-                    ai_summary = f"Implement {ai_summary.lower()}"
+            # Check if summary already starts with an appropriate verb
+            first_word = ai_summary.split()[0] if ai_summary.split() else ""
+            all_action_verbs = []
+            for verbs in action_verb_mapping.values():
+                all_action_verbs.extend(verbs)
+            for verbs in component_verbs.values():
+                all_action_verbs.extend(verbs)
             
-            # Capitalize first letter
-            ai_summary = ai_summary[0].upper() + ai_summary[1:] if ai_summary else "Implement feature"
+            if first_word.lower() not in [v.lower() for v in all_action_verbs]:
+                # Start with appropriate action verb
+                if ai_summary.lower().startswith("the "):
+                    ai_summary = ai_summary[4:]  # Remove "the " prefix
+                ai_summary = f"{best_verb} {ai_summary.lower()}"
+            
+            # Enhance with context if relevant
+            enhanced_summary = self._enhance_summary_with_context(ai_summary, component, priority, issue_type)
+            
+            # Capitalize first letter and clean up
+            enhanced_summary = enhanced_summary[0].upper() + enhanced_summary[1:] if enhanced_summary else "Implement feature"
+            
+            # Remove duplicate words that might have been introduced
+            enhanced_summary = self._remove_duplicate_words(enhanced_summary)
             
             # Ensure it's not too long (JIRA limit is 255 chars)
-            if len(ai_summary) > 250:
-                ai_summary = ai_summary[:247] + "..."
+            if len(enhanced_summary) > 200:  # Leave room for component prefix if needed
+                enhanced_summary = enhanced_summary[:197] + "..."
+            
+            # Add component prefix for better organization (optional)
+            if component and component.lower() != "select component (optional)":
+                if not enhanced_summary.lower().startswith(component.lower()):
+                    enhanced_summary = f"[{component}] {enhanced_summary}"
+                    
+            # Final length check
+            if len(enhanced_summary) > 250:
+                enhanced_summary = enhanced_summary[:247] + "..."
                 
-            return ai_summary
+            return enhanced_summary
             
         except Exception as e:
             logger.error(f"Error creating JIRA summary: {e}")
             return f"Implement feature for {context.get('issue_type', 'Story').lower()}"
     
+    def _extract_meaningful_summary_from_request(self, user_request: str, issue_type: str) -> str:
+        """Extract a meaningful summary from user request"""
+        try:
+            # Clean and truncate user request
+            cleaned_request = user_request.strip()
+            if len(cleaned_request) > 80:
+                # Try to break at a word boundary
+                words = cleaned_request[:80].split()
+                cleaned_request = " ".join(words[:-1]) if len(words) > 1 else cleaned_request[:80]
+            
+            return cleaned_request
+        except Exception:
+            return "feature implementation"
+    
+    def _select_best_action_verb(self, summary: str, issue_type: str, component: str, action_verb_mapping: dict, component_verbs: dict) -> str:
+        """Select the most appropriate action verb based on context"""
+        try:
+            summary_lower = summary.lower()
+            
+            # Check component-specific verbs first
+            if component and component.lower() in component_verbs:
+                component_verb_list = component_verbs[component.lower()]
+                # Check if any component verb appears in the summary
+                for verb in component_verb_list:
+                    if verb.lower() in summary_lower:
+                        return verb
+                # Return first component verb as default
+                return component_verb_list[0]
+            
+            # Check issue type verbs
+            issue_type_lower = issue_type.lower()
+            if issue_type_lower in action_verb_mapping:
+                type_verb_list = action_verb_mapping[issue_type_lower]
+                # Check if any type verb appears in the summary
+                for verb in type_verb_list:
+                    if verb.lower() in summary_lower:
+                        return verb
+                # Return first type verb as default
+                return type_verb_list[0]
+            
+            # Fallback
+            return "Implement"
+            
+        except Exception:
+            return "Implement"
+    
+    def _enhance_summary_with_context(self, summary: str, component: str, priority: str, issue_type: str) -> str:
+        """Enhance summary with relevant context without making it too long"""
+        try:
+            enhanced = summary
+            
+            # Add priority context for critical/high priority items
+            if priority.lower() in ["critical", "high"] and "urgent" not in summary.lower() and "critical" not in summary.lower():
+                if issue_type.lower() == "bug":
+                    enhanced = enhanced.replace("Fix ", "Fix critical ")
+            
+            return enhanced
+            
+        except Exception:
+            return summary
+    
+    def _remove_duplicate_words(self, text: str) -> str:
+        """Remove consecutive duplicate words"""
+        try:
+            words = text.split()
+            result = []
+            prev_word = ""
+            
+            for word in words:
+                if word.lower() != prev_word.lower():
+                    result.append(word)
+                    prev_word = word
+            
+            return " ".join(result)
+            
+        except Exception:
+            return text
+    
     def _create_professional_jira_description(self, parsed_data: Dict[str, Any]) -> str:
-        """Create a professional JIRA description following Atlassian best practices"""
+        """Create enhanced JIRA description with 3-section format, emojis, and improved formatting"""
         try:
             description_parts = []
             
-            # 1. STORY/BACKGROUND (Why) - Following Atlassian template
+            # 🎯 SECTION 1: PROBLEM OR OPPORTUNITY
             main_desc = parsed_data.get("description", "")
             if main_desc and not main_desc.startswith("{"):
-                description_parts.append(f"h3. Story\\n{main_desc}")
+                # Extract Problem/Opportunity section if it exists with emoji, otherwise use full description
+                if "🎯" in main_desc and "⚡" in main_desc:
+                    # AI generated with structured format - extract the sections
+                    problem_section = self._extract_section(main_desc, "🎯", "⚡")
+                    what_to_do_section = self._extract_section(main_desc, "⚡", "🧪") 
+                    testing_section = self._extract_section(main_desc, "🧪", None)
+                    
+                    if problem_section:
+                        description_parts.append(f"h3. 🎯 Problem or Opportunity\\n{problem_section}")
+                    if what_to_do_section:
+                        description_parts.append(f"h3. ⚡ What to Do\\n{what_to_do_section}")
+                    if testing_section:
+                        description_parts.append(f"h3. 🧪 How to Test It\\n{testing_section}")
+                else:
+                    # Fallback: use traditional format if not structured
+                    description_parts.append(f"h3. 🎯 Problem or Opportunity\\n{main_desc}")
+                    
+                    # Add What to Do section from business value if available
+                    business_value = parsed_data.get("business_value", "")
+                    if business_value:
+                        description_parts.append(f"h3. ⚡ What to Do\\n{business_value}")
+                    
+                    # Create testing section from acceptance criteria
+                    acceptance_criteria = parsed_data.get("acceptance_criteria", [])
+                    if acceptance_criteria and isinstance(acceptance_criteria, list):
+                        testing_text = "h3. 🧪 How to Test It\\n"
+                        testing_text += "*Testing Scenarios:*\\n"
+                        for i, criterion in enumerate(acceptance_criteria[:6], 1):
+                            testing_text += f"# Test {i}: {criterion}\\n"
+                        description_parts.append(testing_text.rstrip())
             
-            # 2. BUSINESS VALUE (Why this matters)
-            business_value = parsed_data.get("business_value", "")
-            if business_value:
-                description_parts.append(f"h3. Business Value\\n{business_value}")
-            
-            # 3. ACCEPTANCE CRITERIA (What defines done) - Most important section
+            # 📋 ACCEPTANCE CRITERIA (Enhanced with emojis)
             acceptance_criteria = parsed_data.get("acceptance_criteria", [])
             if acceptance_criteria and isinstance(acceptance_criteria, list):
-                criteria_text = "h3. Acceptance Criteria\\n"
-                for i, criterion in enumerate(acceptance_criteria[:8], 1):  # Limit to 8 criteria
-                    criteria_text += f"# {criterion}\\n"
+                criteria_text = "h3. ✅ Acceptance Criteria\\n"
+                for i, criterion in enumerate(acceptance_criteria[:8], 1):
+                    # Add emoji based on content keywords
+                    emoji = self._get_criterion_emoji(criterion)
+                    criteria_text += f"# {emoji} {criterion}\\n"
                 description_parts.append(criteria_text.rstrip())
             
-            # 4. TECHNICAL REQUIREMENTS (How to implement)
+            # 🏗️ TECHNICAL IMPLEMENTATION
             tech_considerations = parsed_data.get("technical_considerations", "")
             if tech_considerations:
-                description_parts.append(f"h3. Technical Requirements\\n{tech_considerations}")
+                tech_text = f"h3. 🏗️ Technical Implementation\\n"
+                tech_text += f"*Implementation Approach:*\\n{tech_considerations}"
+                description_parts.append(tech_text)
             
-            # 5. DEPENDENCIES & BLOCKERS
+            # 📊 BUSINESS VALUE & IMPACT
+            business_value = parsed_data.get("business_value", "")
+            if business_value and not any("⚡ What to Do" in part for part in description_parts):
+                description_parts.append(f"h3. 📊 Business Value\\n{business_value}")
+            
+            # 🔗 DEPENDENCIES & BLOCKERS
             dependencies = parsed_data.get("dependencies", [])
             if dependencies and isinstance(dependencies, list) and any(dep.strip() for dep in dependencies):
-                deps_text = "h3. Dependencies\\n"
-                for dep in dependencies[:5]:  # Limit to 5 dependencies
+                deps_text = "h3. 🔗 Dependencies & Blockers\\n"
+                for dep in dependencies[:5]:
                     if dep.strip():
-                        deps_text += f"* {dep}\\n"
+                        deps_text += f"* 🔸 {dep}\\n"
                 description_parts.append(deps_text.rstrip())
             
-            # 6. RISKS & CONSIDERATIONS
+            # ⚠️ RISKS & MITIGATION
             risk_assessment = parsed_data.get("risk_assessment", "")
             if risk_assessment:
-                description_parts.append(f"h3. Risks & Mitigation\\n{risk_assessment}")
+                description_parts.append(f"h3. ⚠️ Risks & Mitigation\\n{risk_assessment}")
             
-            # 7. RESOURCES & CONTEXT (Links, contacts, etc.)
-            resources_section = "h3. Resources\\n"
+            # 📈 PROJECT METADATA
+            metadata_items = []
             complexity = parsed_data.get("estimated_complexity", "")
             if complexity:
-                resources_section += f"* *Estimated Complexity:* {complexity}\\n"
+                complexity_emoji = "🟢" if complexity.lower() == "low" else "🟡" if complexity.lower() == "medium" else "🔴"
+                metadata_items.append(f"* {complexity_emoji} *Complexity:* {complexity}")
             
-            # Add any additional context
-            context_info = parsed_data.get("context_info", "")
-            if context_info:
-                resources_section += f"* *Additional Context:* {context_info}\\n"
+            # Add quality score if available
+            quality_score = parsed_data.get("overall_score", "")
+            if quality_score:
+                metadata_items.append(f"* 📊 *AI Quality Score:* {quality_score}")
             
-            # Only add resources section if it has content beyond the header
-            if len(resources_section.split("\\n")) > 2:
-                description_parts.append(resources_section.rstrip())
+            if metadata_items:
+                metadata_text = "h3. 📈 Project Information\\n" + "\\n".join(metadata_items)
+                description_parts.append(metadata_text)
             
             # Combine all parts with proper spacing
             final_description = "\\n\\n".join(description_parts)
             
-            # Add metadata footer (smaller, less prominent)
-            final_description += "\\n\\n----\\n_Ticket created by PM Jira Agent with AI analysis and GitBook research_"
+            # Add enhanced footer with emojis
+            final_description += "\\n\\n----\\n🤖 _Generated by PM Jira Agent with AI analysis and research_"
             
             return final_description
             
         except Exception as e:
             logger.error(f"Error creating JIRA description: {e}")
-            return f"h3. Story\\nGenerated by PM Jira Agent\\n\\nError formatting content: {str(e)}"
+            return f"h3. 🎯 Problem or Opportunity\\nGenerated by PM Jira Agent\\n\\nError formatting content: {str(e)}"
+    
+    def _extract_section(self, text: str, start_marker: str, end_marker: str = None) -> str:
+        """Extract a section from structured text between markers"""
+        try:
+            start_idx = text.find(start_marker)
+            if start_idx == -1:
+                return ""
+            
+            # Find the start of actual content (skip the marker and header)
+            content_start = text.find("\\n", start_idx)
+            if content_start == -1:
+                content_start = start_idx + len(start_marker)
+            else:
+                content_start += 1
+            
+            if end_marker:
+                end_idx = text.find(end_marker, content_start)
+                if end_idx != -1:
+                    return text[content_start:end_idx].strip()
+            
+            # If no end marker or not found, take rest of text
+            return text[content_start:].strip()
+            
+        except Exception:
+            return ""
+    
+    def _get_criterion_emoji(self, criterion: str) -> str:
+        """Get appropriate emoji for acceptance criterion based on content"""
+        criterion_lower = criterion.lower()
+        
+        if any(word in criterion_lower for word in ["test", "verify", "validate", "check"]):
+            return "🧪"
+        elif any(word in criterion_lower for word in ["user", "display", "show", "interface", "ui"]):
+            return "👤"
+        elif any(word in criterion_lower for word in ["api", "endpoint", "request", "response"]):
+            return "🔌"
+        elif any(word in criterion_lower for word in ["data", "database", "store", "save"]):
+            return "💾"
+        elif any(word in criterion_lower for word in ["security", "auth", "login", "permission"]):
+            return "🔐"
+        elif any(word in criterion_lower for word in ["performance", "speed", "load", "time"]):
+            return "⚡"
+        elif any(word in criterion_lower for word in ["notification", "email", "alert", "message"]):
+            return "📬"
+        elif any(word in criterion_lower for word in ["mobile", "responsive", "device"]):
+            return "📱"
+        else:
+            return "✅"
     
     def _extract_jira_labels(self, parsed_data: Dict[str, Any], context: Dict[str, Any]) -> List[str]:
-        """Extract appropriate labels for JIRA ticket organization"""
+        """Extract appropriate labels for JIRA ticket organization with similarity research"""
         try:
             labels = []
             
-            # Add issue type as label
-            issue_type = context.get("issue_type", "story").lower()
-            labels.append(f"type-{issue_type}")
+            # 🏷️ Use AI-generated labels from enhanced PM agent if available
+            ai_labels = parsed_data.get("labels", [])
+            if ai_labels and isinstance(ai_labels, list):
+                labels.extend(ai_labels)
             
-            # Add priority as label
+            # 🎯 Add component as label if provided by user
+            component = context.get("component", "").lower()
+            if component:
+                labels.append(f"component-{component.replace(' ', '-')}")
+            
+            # 🚨 Add priority as label
             priority = context.get("priority", "medium").lower()
             labels.append(f"priority-{priority}")
             
-            # Add complexity as label
+            # 📊 Add complexity as label
             complexity = parsed_data.get("estimated_complexity", "").lower()
             if complexity in ["low", "medium", "high"]:
                 labels.append(f"complexity-{complexity}")
             
-            # Add AI-generated label
+            # 🤖 Add AI-generated label
             labels.append("ai-generated")
             
-            # Add stakeholder as label if provided
+            # 👥 Add stakeholder as label if provided
             stakeholder = context.get("stakeholder", "").lower()
             if stakeholder:
-                # Clean stakeholder name for label
                 clean_stakeholder = "".join(c for c in stakeholder if c.isalnum() or c in ["-", "_"]).strip("-_")
                 if clean_stakeholder:
                     labels.append(f"stakeholder-{clean_stakeholder[:20]}")
             
-            # Extract domain/feature area from description
+            # 🏗️ Extract technology/domain areas from description with enhanced keywords
             description = parsed_data.get("description", "").lower()
+            title = parsed_data.get("summary", "").lower()
+            content = f"{description} {title}"
+            
             domain_keywords = {
-                "api": "api",
-                "security": "security", 
-                "auth": "authentication",
-                "database": "database",
-                "frontend": "frontend",
-                "backend": "backend",
-                "mobile": "mobile",
-                "integration": "integration",
-                "performance": "performance",
-                "ui": "ui-ux",
-                "notification": "notifications"
+                # Frontend Technologies
+                "react": "react", "vue": "vue", "angular": "angular", "javascript": "javascript", 
+                "typescript": "typescript", "css": "frontend", "html": "frontend", "ui": "ui-ux",
+                "responsive": "ui-ux", "accessibility": "accessibility",
+                
+                # Backend Technologies  
+                "api": "api", "rest": "api", "graphql": "api", "microservice": "microservices",
+                "database": "database", "sql": "database", "mongodb": "database", "redis": "caching",
+                "authentication": "authentication", "oauth": "authentication", "auth": "authentication",
+                "security": "security", "encryption": "security", "permission": "security",
+                
+                # Infrastructure & DevOps
+                "docker": "devops", "kubernetes": "devops", "aws": "cloud", "gcp": "cloud", 
+                "azure": "cloud", "deployment": "deployment", "ci/cd": "cicd", "pipeline": "cicd",
+                "monitoring": "monitoring", "logging": "logging", "metrics": "metrics",
+                
+                # Integration & Communication
+                "integration": "integration", "webhook": "integration", "notification": "notifications",
+                "email": "notifications", "sms": "notifications", "push": "notifications",
+                "sync": "data-sync", "migration": "migration", "import": "data-import",
+                
+                # Performance & Optimization
+                "performance": "performance", "optimization": "performance", "cache": "caching",
+                "load": "performance", "speed": "performance", "latency": "performance",
+                
+                # Testing & Quality
+                "test": "testing", "unit": "testing", "integration": "testing", "e2e": "testing",
+                "quality": "quality-assurance", "validation": "validation", "lint": "code-quality",
+                
+                # Mobile & Platform
+                "mobile": "mobile", "ios": "ios", "android": "android", "responsive": "responsive",
+                "pwa": "progressive-web-app", "native": "native-app",
+                
+                # Business Areas
+                "payment": "payment", "billing": "billing", "report": "reporting", 
+                "analytics": "analytics", "dashboard": "dashboard", "search": "search"
             }
             
+            # Add multiple matching domain labels
+            found_domains = []
             for keyword, label in domain_keywords.items():
-                if keyword in description:
-                    labels.append(f"domain-{label}")
-                    break
+                if keyword in content:
+                    if label not in found_domains:  # Avoid duplicates
+                        found_domains.append(label)
+                        labels.append(label)
             
-            return labels[:6]  # Limit to 6 labels to avoid clutter
+            # 🏷️ Research-based labels - simulate similarity analysis with common project patterns
+            self._add_similarity_based_labels(labels, content, context)
+            
+            # Remove duplicates and clean labels
+            unique_labels = []
+            for label in labels:
+                clean_label = label.lower().replace(" ", "-").replace("_", "-")
+                if clean_label not in unique_labels and len(clean_label) > 0:
+                    unique_labels.append(clean_label)
+            
+            return unique_labels[:8]  # Increased limit to 8 for better categorization
             
         except Exception as e:
             logger.error(f"Error extracting JIRA labels: {e}")
             return ["ai-generated"]
+    
+    def _add_similarity_based_labels(self, labels: List[str], content: str, context: Dict[str, Any]) -> None:
+        """Add labels based on similarity patterns with existing tickets (simulated)"""
+        try:
+            # Simulate research-based labels based on common patterns
+            # In a real implementation, this would query existing JIRA tickets
+            
+            # Pattern-based label suggestions
+            pattern_labels = {
+                # Issue patterns
+                "fix": "bug-fix",
+                "bug": "bug-fix", 
+                "error": "bug-fix",
+                "implement": "new-feature",
+                "add": "enhancement",
+                "create": "new-feature",
+                "enhance": "enhancement",
+                "improve": "improvement",
+                "update": "update",
+                "refactor": "refactoring",
+                "optimize": "optimization",
+                
+                # Technology patterns
+                "oauth": "authentication",
+                "jwt": "authentication", 
+                "login": "authentication",
+                "user management": "user-management",
+                "real-time": "real-time",
+                "webhook": "webhook-integration",
+                "third-party": "third-party-integration",
+                "data sync": "data-synchronization",
+                
+                # Business patterns
+                "customer": "customer-facing",
+                "admin": "admin-feature",
+                "reporting": "business-intelligence",
+                "compliance": "compliance",
+                "audit": "audit-trail"
+            }
+            
+            for pattern, label in pattern_labels.items():
+                if pattern in content and label not in labels:
+                    labels.append(label)
+                    
+        except Exception as e:
+            logger.error(f"Error adding similarity-based labels: {e}")
     
     def _extract_jira_components(self, parsed_data: Dict[str, Any]) -> List[str]:
         """Extract components for JIRA ticket categorization"""
