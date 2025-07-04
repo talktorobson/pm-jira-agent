@@ -25,7 +25,7 @@ gcloud functions deploy gitbook-api \
     --source=. \
     --entry-point=gitbook_api \
     --trigger-http \
-    --allow-unauthenticated \
+    --no-allow-unauthenticated \
     --service-account=$SERVICE_ACCOUNT_EMAIL \
     --memory=256Mi \
     --timeout=60s \
@@ -43,7 +43,7 @@ gcloud functions deploy jira-api \
     --source=. \
     --entry-point=jira_api \
     --trigger-http \
-    --allow-unauthenticated \
+    --no-allow-unauthenticated \
     --service-account=$SERVICE_ACCOUNT_EMAIL \
     --memory=256Mi \
     --timeout=60s \
