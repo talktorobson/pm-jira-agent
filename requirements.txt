@@ -1,0 +1,24 @@
+# PM Jira Agent Version 6 - GitBook Full Content Integration
+# Core dependencies for the enhanced 5-agent workflow with full GitBook content retrieval
+
+# Google Cloud and Vertex AI
+google-cloud-secret-manager>=2.18.0
+google-cloud-aiplatform>=1.38.0
+vertexai>=1.38.0
+
+# HTTP Client for API integration
+httpx>=0.25.0
+
+# Standard Python libraries are built-in, no need to install:
+# asyncio, json, logging, typing, datetime, re
+
+# Optional: Development and testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Version 6 Specific - GitBook Full Content Integration
+# - Enhanced GitBook API integration with full page content retrieval
+# - 5-agent workflow with PM, Tech Lead, QA, Business Rules, and Jira Creator agents
+# - Real Jira ticket creation with Bearer token authentication
+# - Vertex AI Agent Engine integration (europe-west1)
+# - Complete documentation context for business-aware ticket generation

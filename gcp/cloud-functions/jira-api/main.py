@@ -41,6 +41,15 @@ def jira_api(request: Request):
     if request.method == 'OPTIONS':
         return ('', 204, headers)
     
+    # Health check endpoint
+    if request.path == '/health' or (request.method == 'GET' and not request.get_json(silent=True)):
+        return (json.dumps({
+            "status": "healthy",
+            "service": "Jira API Cloud Function",
+            "version": "1.0.0",
+            "endpoints": ["create_ticket", "get_tickets", "get_ticket"]
+        }), 200, headers)
+    
     try:
         # Get Jira API credentials from Secret Manager
         jira_token = get_secret("jira-api-token").strip()

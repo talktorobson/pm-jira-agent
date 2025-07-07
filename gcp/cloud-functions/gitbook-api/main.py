@@ -39,6 +39,15 @@ def gitbook_api(request: Request):
     if request.method == 'OPTIONS':
         return ('', 204, headers)
     
+    # Health check endpoint
+    if request.path == '/health' or (request.method == 'GET' and not request.get_json(silent=True)):
+        return (json.dumps({
+            "status": "healthy",
+            "service": "GitBook API Cloud Function",
+            "version": "1.0.0",
+            "endpoints": ["get_content", "search"]
+        }), 200, headers)
+    
     try:
         # Get GitBook API key from Secret Manager
         api_key = get_secret("gitbook-api-key").strip()

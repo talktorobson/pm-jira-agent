@@ -3,12 +3,16 @@
 """
 Custom Tools for PM Jira Agent Multi-Agent System
 Integrates with Cloud Functions for GitBook and Jira APIs
+Uses internal GCP service-to-service authentication
 """
 
 import requests
 import json
 from typing import Dict, List, Any, Optional
 from google.cloud import secretmanager
+from google.auth.transport.requests import Request
+from google.oauth2 import service_account
+import google.auth
 import logging
 
 # Configure logging
@@ -16,12 +20,47 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CloudFunctionTools:
-    """Tools that integrate with deployed Cloud Functions"""
+    """Tools that integrate with deployed Cloud Functions using internal GCP authentication"""
     
     def __init__(self, project_id: str = "service-execution-uat-bb7"):
         self.project_id = project_id
         self.gitbook_function_url = "https://gitbook-api-jlhinciqia-od.a.run.app"
         self.jira_function_url = "https://jira-api-jlhinciqia-od.a.run.app"
+        
+        # Initialize GCP internal authentication
+        self.credentials = None
+        self._setup_internal_auth()
+    
+    def _setup_internal_auth(self):
+        """Setup internal GCP service-to-service authentication"""
+        try:
+            # Use default credentials (works in Vertex AI environment)
+            credentials, project = google.auth.default()
+            self.credentials = credentials
+            logger.info(f"✅ Internal GCP authentication initialized for project: {project}")
+        except Exception as e:
+            logger.warning(f"⚠️  Internal auth not available: {e}")
+            self.credentials = None
+    
+    def _get_internal_auth_headers(self) -> Dict[str, str]:
+        """Get authentication headers for internal GCP service calls"""
+        headers = {"Content-Type": "application/json"}
+        
+        if self.credentials:
+            try:
+                # Refresh credentials if needed
+                if not self.credentials.valid:
+                    self.credentials.refresh(Request())
+                
+                # Add authorization header for internal calls
+                headers["Authorization"] = f"Bearer {self.credentials.token}"
+                logger.debug("✅ Using internal GCP service authentication")
+            except Exception as e:
+                logger.warning(f"⚠️  Failed to get internal auth token: {e}")
+        else:
+            logger.info("ℹ️  No internal auth available, using unauthenticated call")
+        
+        return headers
     
     def search_gitbook_content(self, query: str) -> Dict[str, Any]:
         """
@@ -39,10 +78,13 @@ class CloudFunctionTools:
                 "query": query
             }
             
+            # Use internal GCP authentication for service-to-service calls
+            headers = self._get_internal_auth_headers()
+            
             response = requests.post(
                 self.gitbook_function_url,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 timeout=30
             )
             
@@ -89,10 +131,13 @@ class CloudFunctionTools:
                 "max_results": max_results
             }
             
+            # Use internal GCP authentication for service-to-service calls
+            headers = self._get_internal_auth_headers()
+            
             response = requests.post(
                 self.jira_function_url,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 timeout=30
             )
             
@@ -160,10 +205,13 @@ class CloudFunctionTools:
                 }
             }
             
+            # Use internal GCP authentication for service-to-service calls
+            headers = self._get_internal_auth_headers()
+            
             response = requests.post(
                 self.jira_function_url,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 timeout=30
             )
             
