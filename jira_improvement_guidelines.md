@@ -115,7 +115,28 @@
 - **Objective**: 1 sentence
 - **Technical Requirements**: 3-5 bullet points
 - **Acceptance Criteria**: 3-5 measurable outcomes
-- **Total Description**: 200-300 words maximum
+- **Total Description**: 200-250 words maximum (STRICT LIMIT)
+
+### ⚠️ CRITICAL: Aggressive Length Reduction Required
+**Real Example**: Recent AHS API ticket was 1,200+ words, reduced to 250 words (79% reduction)
+
+#### What to DELETE from tickets:
+- ❌ **Testing Strategy sections** (team knows testing fundamentals)
+- ❌ **Security explanations** (OWASP, vulnerability scanning details)
+- ❌ **GDPR/Compliance explanations** (basic privacy concepts)
+- ❌ **Tool lists** (JUnit, Mockito, etc. - team knows tools)
+- ❌ **Methodology descriptions** (what unit testing is, etc.)
+- ❌ **Detailed architecture explanations** (unless project-specific)
+- ❌ **Implementation guidance** beyond 3-5 key steps
+- ❌ **Verbose background** that doesn't add specific context
+
+#### What to KEEP in tickets:
+- ✅ **Specific technical requirements** (endpoints, response formats)
+- ✅ **Measurable acceptance criteria** (performance targets, etc.)
+- ✅ **GitBook references** to relevant documentation
+- ✅ **Related AHSSI tickets** for context
+- ✅ **Project-specific compliance requirements**
+- ✅ **Clear implementation steps** (3-5 maximum)
 
 ### Reference Requirements:
 - **Minimum**: 1 GitBook reference

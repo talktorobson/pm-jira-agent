@@ -353,9 +353,9 @@ class EnhancedMultiAgentOrchestrator:
         # Format research context
         research_context = self._format_research_context(gitbook_results + jira_results)
         
-        # Create enhanced prompt
+        # Create enhanced prompt with STRICT formatting requirements
         prompt = f"""
-        As the PM Agent, analyze this user request and create an initial Jira ticket JSON structure:
+        As the PM Agent, create a concise, well-formatted Jira ticket following STRICT guidelines:
 
         USER REQUEST:
         {user_request}
@@ -363,29 +363,55 @@ class EnhancedMultiAgentOrchestrator:
         RESEARCH CONTEXT:
         {research_context}
 
-        REQUIREMENTS:
-        - Create initial ticket JSON for project {self.jira_config['project_key']}
-        - Include business context and value assessment
-        - Use research context to enrich the ticket
-        - Focus on user story format and business requirements
-        - Include relevant labels and components
+        🚨 MANDATORY FORMATTING REQUIREMENTS:
+        1. **DESCRIPTION MAXIMUM: 250 words** (count every word - this is CRITICAL)
+        2. **NO methodology explanations** (no testing, security, GDPR basics)
+        3. **MUST include 2+ GitBook references** with actual URLs
+        4. **MUST include 2+ similar AHSSI tickets** with URLs 
+        5. **Use clean structure**: Objective (1 sentence) → Requirements (3-5 points) → References → Acceptance Criteria (3-5 measurable outcomes)
 
-        Please respond with a JSON structure containing:
+        ❌ DO NOT INCLUDE:
+        - Testing strategy sections
+        - Security methodology explanations  
+        - Tool lists (JUnit, Mockito, etc.)
+        - GDPR/compliance explanations
+        - Implementation guidance >5 steps
+        - Verbose background
+
+        ✅ STRUCTURE TEMPLATE:
+        ### 📊 [5-8 word title]
+        **Objective:** [One sentence describing goal]
+        
+        #### 🔧 Requirements:
+        1. [Specific requirement]
+        2. [Specific requirement] 
+        3. [Specific requirement]
+        
+        #### 📚 References:
+        - **GitBook**: [Title](URL)
+        - **Related**: [AHSSI-XXXX](URL) - brief description
+        
+        #### ✅ Acceptance Criteria:
+        1. [Measurable outcome]
+        2. [Measurable outcome]
+        3. [Measurable outcome]
+
+        Respond with JSON:
         {{
             "jira_ticket": {{
                 "fields": {{
                     "project": {{"key": "{self.jira_config['project_key']}"}},
-                    "summary": "Clear actionable summary",
-                    "description": "Comprehensive description with business context",
+                    "summary": "[5-8 words max]",
+                    "description": "[EXACTLY follow template above - MAX 250 words]",
                     "issuetype": {{"name": "Story"}},
-                    "priority": {{"name": "Medium/High/Low"}},
-                    "labels": ["relevant", "labels"],
-                    "components": [{{"name": "ComponentName"}}]
+                    "priority": {{"name": "Medium"}},
+                    "labels": ["enhancement"],
+                    "components": [{{"name": "SSI"}}]
                 }}
             }},
-            "business_value": "Clear business value assessment",
-            "research_sources": ["source1", "source2"],
-            "reasoning": "Why this approach and priority"
+            "word_count": "[actual word count of description]",
+            "business_value": "[Brief value statement]",
+            "research_sources": ["[source1]", "[source2]"]
         }}
         """
         
@@ -396,8 +422,56 @@ class EnhancedMultiAgentOrchestrator:
             prompt
         )
         
-        # Calculate quality score
-        quality_score = self._calculate_quality_score(agent_response, "pm_agent")
+        # ENFORCE FORMATTING VALIDATION
+        if agent_response["success"]:
+            ticket_description = agent_response.get("response", {}).get("jira_ticket", {}).get("fields", {}).get("description", "")
+            validation = self._validate_ticket_format(ticket_description)
+            
+            if not validation["passes_validation"]:
+                logger.warning(f"🚨 PM Agent ticket FAILED validation:")
+                for issue in validation["issues"]:
+                    logger.warning(f"   ❌ {issue}")
+                
+                # FORCE RETRY with stricter prompt
+                retry_prompt = f"""
+                TICKET VALIDATION FAILED. Issues found:
+                {'; '.join(validation['issues'])}
+                
+                RETRY with ABSOLUTE REQUIREMENTS:
+                - MAX 250 words (current: {validation['word_count']} words)
+                - MUST use exact template structure
+                - NO testing/security explanations
+                - MUST include GitBook + AHSSI references
+                
+                USER REQUEST: {user_request}
+                RESEARCH CONTEXT: {research_context}
+                
+                Create a ticket that follows the EXACT template structure:
+                ### 📊 [Title]
+                **Objective:** [One sentence]
+                #### 🔧 Requirements: [3-5 points]
+                #### 📚 References: [GitBook + AHSSI links]
+                #### ✅ Acceptance Criteria: [3-5 measurable outcomes]
+                """
+                
+                logger.info("🔄 Retrying PM Agent with stricter validation...")
+                agent_response = await self.call_vertex_ai_agent(
+                    self.agents["pm_agent"], 
+                    retry_prompt
+                )
+                
+                # Re-validate
+                if agent_response["success"]:
+                    ticket_description = agent_response.get("response", {}).get("jira_ticket", {}).get("fields", {}).get("description", "")
+                    validation = self._validate_ticket_format(ticket_description)
+                    
+                    if not validation["passes_validation"]:
+                        logger.error("🚨 PM Agent STILL failing validation after retry. Using validation score.")
+        
+        # Calculate quality score (use validation score if available)
+        base_quality_score = self._calculate_quality_score(agent_response, "pm_agent")
+        validation_score = validation.get("score", 1.0) if 'validation' in locals() else 1.0
+        quality_score = min(base_quality_score, validation_score)
         
         # Package result
         result = {
@@ -405,6 +479,7 @@ class EnhancedMultiAgentOrchestrator:
             "success": agent_response["success"],
             "response": agent_response.get("response", {}),
             "quality_score": quality_score,
+            "validation_results": validation if 'validation' in locals() else {"passes_validation": True, "word_count": 0, "issues": []},
             "research_sources": gitbook_results + jira_results,
             "api_calls": {
                 "gitbook_searches": len(gitbook_results),
@@ -415,6 +490,13 @@ class EnhancedMultiAgentOrchestrator:
         }
         
         logger.info(f"📊 PM Agent Quality Score: {quality_score:.3f}")
+        if 'validation' in locals():
+            logger.info(f"📝 Ticket Word Count: {validation['word_count']}/250")
+            if validation["passes_validation"]:
+                logger.info("✅ Ticket formatting validation PASSED")
+            else:
+                logger.warning(f"❌ Ticket formatting validation FAILED: {len(validation['issues'])} issues")
+        
         return result
     
     async def process_tech_lead_agent(self, pm_result: Dict) -> Dict[str, Any]:
@@ -815,6 +897,87 @@ class EnhancedMultiAgentOrchestrator:
         
         return "\n\n".join(context_parts)
     
+    def _validate_ticket_format(self, ticket_description: str) -> Dict[str, Any]:
+        """
+        Enforce strict formatting guidelines for Jira tickets
+        Returns validation results with pass/fail and specific issues
+        """
+        
+        # Word count validation
+        word_count = len(ticket_description.split())
+        
+        # Required elements validation
+        has_objective = "**Objective:**" in ticket_description
+        has_requirements = "#### 🔧 Requirements:" in ticket_description
+        has_references = "#### 📚 References:" in ticket_description
+        has_acceptance = "#### ✅ Acceptance Criteria:" in ticket_description
+        
+        # Check for forbidden content
+        forbidden_terms = [
+            "testing strategy", "test plan", "unit tests:", "integration tests:",
+            "junit", "mockito", "selenium", "owasp", "gdpr compliance",
+            "security standards", "audit requirements", "what is", "how to"
+        ]
+        
+        forbidden_found = [term for term in forbidden_terms if term.lower() in ticket_description.lower()]
+        
+        # GitBook reference check
+        gitbook_refs = ticket_description.count("GitBook")
+        ahssi_refs = ticket_description.count("AHSSI-")
+        
+        # Validation results
+        validation = {
+            "passes_validation": True,
+            "word_count": word_count,
+            "issues": [],
+            "score": 1.0
+        }
+        
+        # Check violations
+        if word_count > 250:
+            validation["passes_validation"] = False
+            validation["issues"].append(f"Description too long: {word_count} words (max 250)")
+            validation["score"] -= 0.3
+            
+        if not has_objective:
+            validation["passes_validation"] = False
+            validation["issues"].append("Missing required '**Objective:**' section")
+            validation["score"] -= 0.2
+            
+        if not has_requirements:
+            validation["passes_validation"] = False
+            validation["issues"].append("Missing required '#### 🔧 Requirements:' section")
+            validation["score"] -= 0.2
+            
+        if not has_references:
+            validation["passes_validation"] = False
+            validation["issues"].append("Missing required '#### 📚 References:' section")
+            validation["score"] -= 0.2
+            
+        if not has_acceptance:
+            validation["passes_validation"] = False
+            validation["issues"].append("Missing required '#### ✅ Acceptance Criteria:' section")
+            validation["score"] -= 0.2
+            
+        if gitbook_refs < 1:
+            validation["passes_validation"] = False
+            validation["issues"].append("Must include at least 1 GitBook reference")
+            validation["score"] -= 0.2
+            
+        if ahssi_refs < 1:
+            validation["passes_validation"] = False
+            validation["issues"].append("Must include at least 1 similar AHSSI ticket reference")
+            validation["score"] -= 0.2
+            
+        if forbidden_found:
+            validation["passes_validation"] = False
+            validation["issues"].append(f"Contains forbidden methodology content: {', '.join(forbidden_found)}")
+            validation["score"] -= 0.3
+            
+        validation["score"] = max(0.0, validation["score"])
+        
+        return validation
+
     def _calculate_composite_quality_score(self, workflow_data: Dict) -> Dict[str, Any]:
         """Calculate composite quality score across all agents"""
         
